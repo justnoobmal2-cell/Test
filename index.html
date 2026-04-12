@@ -209,17 +209,19 @@ body{height:100%;overflow:hidden;background:var(--bg);color:#fff;font-family:'No
 
   <!-- SEARCH -->
   <div class="screen" id="searchScreen">
-    <div class="sh">
-      <h1>검색</h1>
-      <div class="sbox">
-        <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input class="sin" id="sin" placeholder="YouTube에서 검색">
-        <button class="scl" id="scl" onclick="clearS()">✕</button>
+    <div style="padding:52px 16px 0">
+      <h1 style="font-size:22px;font-weight:700;margin-bottom:14px">검색</h1>
+      <div style="background:#fff;border-radius:6px;padding:0 14px;display:flex;align-items:center;gap:10px;height:46px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#121212" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="sin" placeholder="YouTube에서 검색" style="flex:1;background:transparent;border:none;outline:none;font-family:'Noto Sans KR',sans-serif;font-size:15px;color:#121212;font-weight:500">
       </div>
-      <button class="sbtn" onclick="doSearch()">검색</button>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button id="sbtnEl" style="flex:1;height:46px;border-radius:6px;background:#1db954;color:#000;border:none;font-family:'Noto Sans KR',sans-serif;font-weight:700;font-size:14px;cursor:pointer;-webkit-appearance:none">검색</button>
+        <button id="keyBtnEl" style="width:46px;height:46px;border-radius:6px;background:#282828;color:#b3b3b3;border:none;font-size:18px;cursor:pointer;-webkit-appearance:none">⚙</button>
+      </div>
     </div>
-    <div id="sres">
-      <div class="s-sec">내 라이브러리</div>
+    <div id="sres" style="padding-top:8px">
+      <div style="font-size:12px;font-weight:700;color:#b3b3b3;padding:14px 16px 6px;text-transform:uppercase;letter-spacing:.5px">내 라이브러리</div>
       <div id="libRows"></div>
     </div>
   </div>
@@ -451,38 +453,43 @@ function parseLy(raw){
 }
 
 // ── YOUTUBE 검색 (Invidious API) ──
-var INVIDIOUS=[
-  'https://invidious.fdn.fr',
-  'https://yewtu.be',
-  'https://inv.nadeko.net',
-  'https://invidious.privacydev.net'
-];
-var PROXY='https://corsproxy.io/?';
+function getKey(){return localStorage.getItem('yt_api_key')||''}
+function setKey(k){localStorage.setItem('yt_api_key',k)}
 
 function doSearch(){
   var q=document.getElementById('sin').value.trim();
   if(!q){toast('검색어를 입력해줘');return}
+  var key=getKey();
+  if(!key){
+    showKeyPrompt();return;
+  }
   document.getElementById('scl').style.display='block';
-  var el=document.getElementById('sres');
-  el.innerHTML='<div class="s-loading"><div class="s-spinner"></div>검색 중...</div>';
-  trySearch(q,0,false);
+  document.getElementById('sres').innerHTML='<div class="s-loading"><div class="s-spinner"></div>검색 중...</div>';
+  var url='https://www.googleapis.com/youtube/v3/search?part=snippet&q='+encodeURIComponent(q)+'&type=video&maxResults=15&key='+key;
+  fetch(url)
+    .then(function(r){return r.json()})
+    .then(function(data){
+      if(data.error){
+        if(data.error.code===403||data.error.code===400){
+          localStorage.removeItem('yt_api_key');
+          document.getElementById('sres').innerHTML='<div class="empty">API 키가 잘못됐어<br>다시 설정해줘</div>';
+          setTimeout(showKeyPrompt,1500);
+        } else {
+          document.getElementById('sres').innerHTML='<div class="empty">검색 실패: '+data.error.message+'</div>';
+        }
+        return;
+      }
+      renderSearchResults(data.items||[]);
+    })
+    .catch(function(){
+      document.getElementById('sres').innerHTML='<div class="empty">검색 실패<br>네트워크 상태를 확인해줘</div>';
+    });
 }
 
-function trySearch(q,idx,useProxy){
-  if(idx>=INVIDIOUS.length){
-    if(!useProxy){trySearch(q,0,true);return}
-    document.getElementById('sres').innerHTML='<div class="empty">검색 실패<br>잠시 후 다시 시도해봐</div>';
-    return;
-  }
-  var base=INVIDIOUS[idx]+'/api/v1/search?q='+encodeURIComponent(q)+'&type=video&fields=videoId,title,author,lengthSeconds,videoThumbnails';
-  var url=useProxy?PROXY+encodeURIComponent(base):base;
-  fetch(url)
-    .then(function(r){if(!r.ok)throw new Error();return r.json()})
-    .then(function(data){
-      if(!data||!data.length)throw new Error();
-      renderSearchResults(data);
-    })
-    .catch(function(){trySearch(q,idx+1,useProxy)});
+function showKeyPrompt(){
+  var cur=getKey();
+  var k=prompt('YouTube Data API 키를 입력해줘\n\n발급: console.cloud.google.com\n→ YouTube Data API v3 활성화\n→ 사용자 인증 정보 → API 키',cur||'');
+  if(k&&k.trim()){setKey(k.trim());toast('API 키 저장됨 ✓')}
 }
 
 function fmtDur(sec){
@@ -595,6 +602,13 @@ function saveSong(){
   var url=document.getElementById('upUrl').value.trim();
   songs.push({title:title,url:url,pairs:JSON.parse(JSON.stringify(pairs))});
   sv();renderAll();
+
+// 버튼 이벤트 직접 바인딩
+document.getElementById('sbtnEl').addEventListener('click', doSearch);
+document.getElementById('keyBtnEl').addEventListener('click', showKeyPrompt);
+document.getElementById('sin').addEventListener('keydown', function(e){
+  if(e.key==='Enter') doSearch();
+});
   document.getElementById('synco').classList.remove('on');
   toast('"'+title+'" 저장됨 ✓');
 }
