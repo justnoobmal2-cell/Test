@@ -20,9 +20,9 @@ body{height:100%;overflow:hidden;background:var(--bg);color:#fff;font-family:'No
 #mini{position:fixed;left:8px;right:8px;bottom:calc(var(--nav-h)+4px);background:#1f1f1f;border-radius:10px;overflow:hidden;z-index:190;display:none;cursor:pointer;border:1px solid rgba(255,255,255,.06)}
 #mini.on{display:block}
 #screens{position:fixed;top:0;left:0;right:0;bottom:var(--nav-h);overflow:hidden;z-index:1}
-.screen{position:absolute;inset:0;overflow-y:auto;display:none;padding-bottom:100px}
+.screen{position:absolute;inset:0;overflow-y:auto;display:none;padding-bottom:100px;z-index:1}
 .screen::-webkit-scrollbar{display:none}
-.screen.on{display:block}
+.screen.on{display:block;z-index:2}
 
 /* ── NAV ── */
 .nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:none;background:transparent;cursor:pointer;color:var(--muted);font-family:'Noto Sans KR',sans-serif;font-size:10px;font-weight:600;transition:color .15s}
@@ -199,7 +199,6 @@ body{height:100%;overflow:hidden;background:var(--bg);color:#fff;font-family:'No
 
 <div id="screens">
 
-  <!-- HOME -->
   <div class="screen on" id="homeScreen">
     <div class="ph"><h1 id="greet">안녕하세요 👋</h1></div>
     <div class="qg" id="qg"></div>
@@ -207,7 +206,6 @@ body{height:100%;overflow:hidden;background:var(--bg);color:#fff;font-family:'No
     <div id="homeSongs"></div>
   </div>
 
-  <!-- SEARCH -->
   <div class="screen" id="searchScreen">
     <div style="padding:52px 16px 0">
       <h1 style="font-size:22px;font-weight:700;margin-bottom:14px">검색</h1>
@@ -226,7 +224,6 @@ body{height:100%;overflow:hidden;background:var(--bg);color:#fff;font-family:'No
     </div>
   </div>
 
-  <!-- PLAYLIST -->
   <div class="screen" id="playlistScreen">
     <div class="plh">
       <div class="pli">
@@ -246,7 +243,6 @@ body{height:100%;overflow:hidden;background:var(--bg);color:#fff;font-family:'No
     <div id="plsongs"></div>
   </div>
 
-  <!-- UPLOAD -->
   <div class="screen" id="uploadScreen">
     <div class="uh"><h1>업로드</h1><p>YouTube URL과 가사를 넣고<br>싱크를 맞춰 저장하세요.</p></div>
     <div class="ucard">
@@ -258,7 +254,6 @@ body{height:100%;overflow:hidden;background:var(--bg);color:#fff;font-family:'No
   </div>
 </div>
 
-<!-- SYNC EDITOR -->
 <div id="synco">
   <div class="sonav">
     <button class="soback" onclick="closeSy()">
@@ -282,7 +277,6 @@ body{height:100%;overflow:hidden;background:var(--bg);color:#fff;font-family:'No
   </div>
 </div>
 
-<!-- MINI PLAYER -->
 <div id="mini" onclick="openPO()">
   <div class="mini-in">
     <div class="mini-th">
@@ -304,7 +298,6 @@ body{height:100%;overflow:hidden;background:var(--bg);color:#fff;font-family:'No
   <div class="mini-prog"><div class="mini-pf" id="miniPF"></div></div>
 </div>
 
-<!-- BOTTOM NAV -->
 <nav id="nav">
   <button class="nb on" data-t="home">
     <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>홈
@@ -320,7 +313,6 @@ body{height:100%;overflow:hidden;background:var(--bg);color:#fff;font-family:'No
   </button>
 </nav>
 
-<!-- FULL PLAYER -->
 <div id="po">
   <div class="po-hd">
     <button class="po-dn" onclick="closePO()">
@@ -361,6 +353,7 @@ body{height:100%;overflow:hidden;background:var(--bg);color:#fff;font-family:'No
 </div>
 
 <div class="toast" id="toast"></div>
+
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
 var player=null,pReady=false,playing=false;
@@ -507,6 +500,7 @@ function renderSearchResults(data){
   data.slice(0,15).forEach(function(v){
     var thumb=v.videoThumbnails&&v.videoThumbnails.length?v.videoThumbnails[v.videoThumbnails.length>2?2:0].url:'';
     var dur=fmtDur(v.lengthSeconds);
+    // 따옴표 오류 수정 (escape 처리)
     html+='<div class="yt-item">'+
       (thumb?'<img class="yt-thumb" src="'+thumb+'" loading="lazy" onerror="this.style.display=\'none\'">':'<div class="yt-thumb-ph"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div>')+
       '<div class="yt-info">'+
@@ -514,10 +508,10 @@ function renderSearchResults(data){
         '<div class="yt-meta">'+esc(v.author)+(dur?' · '+dur:'')+'</div>'+
       '</div>'+
       '<div class="yt-acts">'+
-        '<button class="yt-act g" onclick="playYT(\''+v.videoId+'\',\''+esc(v.title).replace(/'/g,'&#39;')+'\')" title="재생">'+
+        '<button class="yt-act g" onclick="playYT(\''+v.videoId+'\',\''+esc(v.title).replace(/'/g,"&apos;")+'\')" title="재생">'+
           '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'+
         '</button>'+
-        '<button class="yt-act" onclick="addToSync(\''+v.videoId+'\',\''+esc(v.title).replace(/'/g,'&#39;')+'\')" title="싱크 추가">'+
+        '<button class="yt-act" onclick="addToSync(\''+v.videoId+'\',\''+esc(v.title).replace(/'/g,"&apos;")+'\')" title="싱크 추가">'+
           '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>'+
         '</button>'+
       '</div>'+
@@ -540,8 +534,9 @@ function playYT(videoId,title){
   toast('▶ '+title);
 }
 
+// 닫히지 않았던 따옴표 에러 수정
 function addToSync(videoId,title){
-  document.getElementById('upUrl').value='https://www.youtube.com/watch?v='+videoId;
+  document.getElementById('upUrl').value='https://youtu.be/' + videoId;
   switchTab('upload');
   toast('"'+title+'" URL 추가됨 — 가사를 넣어줘');
 }
@@ -552,8 +547,6 @@ function clearS(){
   document.getElementById('sres').innerHTML='<div class="s-sec">내 라이브러리</div><div id="libRows"></div>';
   renderLib();
 }
-
-document.getElementById('sin').addEventListener('keydown',function(e){if(e.key==='Enter')doSearch()});
 
 // ── SYNC ──
 function startSync(){
@@ -602,13 +595,6 @@ function saveSong(){
   var url=document.getElementById('upUrl').value.trim();
   songs.push({title:title,url:url,pairs:JSON.parse(JSON.stringify(pairs))});
   sv();renderAll();
-
-// 버튼 이벤트 직접 바인딩
-document.getElementById('sbtnEl').addEventListener('click', doSearch);
-document.getElementById('keyBtnEl').addEventListener('click', showKeyPrompt);
-document.getElementById('sin').addEventListener('keydown', function(e){
-  if(e.key==='Enter') doSearch();
-});
   document.getElementById('synco').classList.remove('on');
   toast('"'+title+'" 저장됨 ✓');
 }
@@ -720,11 +706,27 @@ document.addEventListener('keydown',function(e){
   if((e.ctrlKey||e.metaKey)&&e.code==='KeyZ'){e.preventDefault();undo()}
 });
 
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function esc(s){return String(s||'').replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>')}
 var toastT;
 function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){el.classList.remove('show')},2200)}
 
 renderAll();
+
+// ── 이벤트 리스너 안전한 연결 ──
+document.addEventListener('DOMContentLoaded', function() {
+  var sBtn = document.getElementById('sbtnEl');
+  if(sBtn) sBtn.addEventListener('click', doSearch);
+  
+  var kBtn = document.getElementById('keyBtnEl');
+  if(kBtn) kBtn.addEventListener('click', showKeyPrompt);
+  
+  var sIn = document.getElementById('sin');
+  if(sIn) {
+    sIn.addEventListener('keydown', function(e){
+      if(e.key === 'Enter') doSearch();
+    });
+  }
+});
 </script>
 </body>
 </html>
