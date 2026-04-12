@@ -451,7 +451,13 @@ function parseLy(raw){
 }
 
 // ── YOUTUBE 검색 (Invidious API) ──
-var INVIDIOUS=['https://invidious.fdn.fr','https://yewtu.be','https://inv.nadeko.net','https://invidious.privacydev.net'];
+var INVIDIOUS=[
+  'https://invidious.fdn.fr',
+  'https://yewtu.be',
+  'https://inv.nadeko.net',
+  'https://invidious.privacydev.net'
+];
+var PROXY='https://corsproxy.io/?';
 
 function doSearch(){
   var q=document.getElementById('sin').value.trim();
@@ -459,19 +465,24 @@ function doSearch(){
   document.getElementById('scl').style.display='block';
   var el=document.getElementById('sres');
   el.innerHTML='<div class="s-loading"><div class="s-spinner"></div>검색 중...</div>';
-  trySearch(q,0);
+  trySearch(q,0,false);
 }
 
-function trySearch(q,idx){
+function trySearch(q,idx,useProxy){
   if(idx>=INVIDIOUS.length){
-    document.getElementById('sres').innerHTML='<div class="empty">검색 실패 😢<br>잠시 후 다시 시도해봐</div>';
+    if(!useProxy){trySearch(q,0,true);return}
+    document.getElementById('sres').innerHTML='<div class="empty">검색 실패<br>잠시 후 다시 시도해봐</div>';
     return;
   }
-  var url=INVIDIOUS[idx]+'/api/v1/search?q='+encodeURIComponent(q)+'&type=video&fields=videoId,title,author,lengthSeconds,videoThumbnails';
+  var base=INVIDIOUS[idx]+'/api/v1/search?q='+encodeURIComponent(q)+'&type=video&fields=videoId,title,author,lengthSeconds,videoThumbnails';
+  var url=useProxy?PROXY+encodeURIComponent(base):base;
   fetch(url)
     .then(function(r){if(!r.ok)throw new Error();return r.json()})
-    .then(function(data){renderSearchResults(data)})
-    .catch(function(){trySearch(q,idx+1)});
+    .then(function(data){
+      if(!data||!data.length)throw new Error();
+      renderSearchResults(data);
+    })
+    .catch(function(){trySearch(q,idx+1,useProxy)});
 }
 
 function fmtDur(sec){
