@@ -17,6 +17,9 @@ html,body{height:100%;overflow:hidden;background:#121212;color:#fff;font-family:
 .screen::-webkit-scrollbar{display:none}
 .screen.on{display:block}
 
+/* 버튼 안의 SVG가 클릭 이벤트를 방해하지 않도록 처리 (정지 버튼 안 눌림 해결) */
+.mini-btn svg, .po-btn svg, .po-btn-main svg, .yt-act svg, .nav-btn svg { pointer-events: none; }
+
 /* HOME */
 .home-top{padding:52px 16px 8px}
 .home-greeting{font-size:22px;font-weight:700}
@@ -135,10 +138,10 @@ html,body{height:100%;overflow:hidden;background:#121212;color:#fff;font-family:
 #miniPlayer{display:none;flex-shrink:0;background:var(--s2);border-radius:8px;margin:0 8px 4px;overflow:hidden;cursor:pointer}
 #miniPlayer.on{display:block}
 .mini-inner{display:flex;align-items:center;gap:12px;padding:10px 12px}
-.mini-thumb{width:40px;height:40px;background:var(--s3);border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.mini-thumb{width:40px;height:40px;background:var(--s3);border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--muted);overflow:hidden}
 .mini-info{flex:1;min-width:0}
 .mini-title{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mini-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.mini-sub{font-size:11px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini-btns{display:flex;gap:2px}
 .mini-btn{background:transparent;border:none;cursor:pointer;color:#fff;padding:6px;display:flex;align-items:center;justify-content:center}
 .mini-btn svg{width:22px;height:22px;fill:currentColor}
@@ -200,7 +203,6 @@ html,body{height:100%;overflow:hidden;background:#121212;color:#fff;font-family:
 
   <div class="screens">
 
-    <!-- HOME -->
     <div class="screen on" id="homeScreen">
       <div class="home-top"><div class="home-greeting" id="homeGreeting">안녕하세요 👋</div></div>
       <div class="quick-grid" id="quickGrid"></div>
@@ -208,7 +210,6 @@ html,body{height:100%;overflow:hidden;background:#121212;color:#fff;font-family:
       <div id="homeSongs"></div>
     </div>
 
-    <!-- SEARCH -->
     <div class="screen" id="searchScreen">
       <div class="search-header">
         <div class="search-title">검색</div>
@@ -225,7 +226,6 @@ html,body{height:100%;overflow:hidden;background:#121212;color:#fff;font-family:
       <div id="searchResults"><div class="s-sec">내 라이브러리</div><div id="libRows"></div></div>
     </div>
 
-    <!-- PLAYLIST -->
     <div class="screen" id="playlistScreen">
       <div class="pl-hero">
         <div class="pl-icon">
@@ -245,7 +245,6 @@ html,body{height:100%;overflow:hidden;background:#121212;color:#fff;font-family:
       <div id="plSongs"></div>
     </div>
 
-    <!-- UPLOAD -->
     <div class="screen" id="uploadScreen">
       <div class="up-header"><div class="up-title">업로드</div><div class="up-sub">YouTube URL과 가사를 넣고<br>싱크를 맞춰 저장하세요.</div></div>
       <div class="up-card">
@@ -257,7 +256,6 @@ html,body{height:100%;overflow:hidden;background:#121212;color:#fff;font-family:
     </div>
   </div>
 
-  <!-- SYNC EDITOR -->
   <div id="syncOverlay">
     <div class="so-nav">
       <button class="so-back" id="soBackBtn">‹</button>
@@ -279,7 +277,6 @@ html,body{height:100%;overflow:hidden;background:#121212;color:#fff;font-family:
     </div>
   </div>
 
-  <!-- MINI PLAYER -->
   <div id="miniPlayer">
     <div class="mini-inner">
       <div class="mini-thumb">
@@ -301,7 +298,6 @@ html,body{height:100%;overflow:hidden;background:#121212;color:#fff;font-family:
     <div class="mini-prog"><div class="mini-pfill" id="miniPFill"></div></div>
   </div>
 
-  <!-- BOTTOM NAV -->
   <nav id="bottomNav">
     <button class="nav-btn on" data-tab="home">
       <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
@@ -322,7 +318,6 @@ html,body{height:100%;overflow:hidden;background:#121212;color:#fff;font-family:
   </nav>
 </div>
 
-<!-- FULL PLAYER -->
 <div id="playerOverlay">
   <div class="po-handle-wrap"><div class="po-handle"></div></div>
   <div class="po-top">
@@ -358,6 +353,7 @@ html,body{height:100%;overflow:hidden;background:#121212;color:#fff;font-family:
 </div>
 
 <div class="toast" id="toast"></div>
+
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
 // ══ STATE ══
@@ -369,30 +365,22 @@ var poLines=[], raf=null, shuf=false;
 var IC_PLAY='<path d="M8 5v14l11-7z"/>';
 var IC_PAUSE='<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
 
-// ══ STORAGE ══
+// ══ STORAGE & KEY ══
 function ld(){try{songs=JSON.parse(localStorage.getItem('sootify_v6')||'[]')}catch(e){songs=[]}}
 function sv(){localStorage.setItem('sootify_v6',JSON.stringify(songs))}
-function getKey(){return localStorage.getItem('yt_key')||''}
-function setKey(k){localStorage.setItem('yt_key',k)}
+function getKey(){return localStorage.getItem('yt_api_key')||''}
+function setKey(k){localStorage.setItem('yt_api_key',k)}
 ld();
 
 // ══ GREETING ══
 var h=new Date().getHours();
 document.getElementById('homeGreeting').textContent=h<12?'좋은 아침이에요 ☀':h<18?'안녕하세요 👋':'좋은 밤이에요 🌙';
 
-// ══ KEY STATUS ══
-function updateKeyStatus(){
-  var k=getKey();
-  var el=document.getElementById('keyStatus');
-  if(k){el.textContent='API 키 설정됨';el.className='key-status ok';}
-  else{el.textContent='API 키 없음';el.className='key-status';}
-}
-updateKeyStatus();
-
 // ══ YT API ══
 function onYouTubeIframeAPIReady(){
   player=new YT.Player('yt',{height:'1',width:'1',
-    playerVars:{controls:0,autoplay:0,playsinline:1},
+    // 자동재생(autoplay:1) 활성화
+    playerVars:{controls:0,autoplay:1,playsinline:1},
     events:{
       onReady:function(){pReady=true;setApi('r')},
       onError:function(){setApi('e')},
@@ -448,70 +436,135 @@ function tick(){
 }
 function fmt(s){s=Math.floor(s);return Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60)}
 
-// ══ YOUTUBE SEARCH ══
+// ══ API KEY MODAL ══
+function showKeyPrompt(){
+  var modal=document.getElementById('keyModal');
+  var input=document.getElementById('keyInput');
+  input.value=getKey();
+  modal.style.display='flex';
+  setTimeout(function(){input.focus()},100);
+}
+function closeKeyModal(){ document.getElementById('keyModal').style.display='none'; }
+function initKeyModal(){
+  document.getElementById('keyCancelBtn').addEventListener('click',closeKeyModal);
+  document.getElementById('keyConfirmBtn').addEventListener('click',function(){
+    var k=document.getElementById('keyInput').value.trim();
+    if(k){setKey(k);updateKeyStatus();toast('API 키 저장됨 ✓');}
+    closeKeyModal();
+  });
+  document.getElementById('keyModal').addEventListener('click',function(e){
+    if(e.target===this)closeKeyModal();
+  });
+}
+function updateKeyStatus(){
+  var el=document.getElementById('keyStatus');
+  if(!el)return;
+  if(getKey()){el.textContent='API 키 설정됨';el.className='key-status ok';}
+  else{el.textContent='API 키 없음';el.className='key-status';}
+}
+
+// ══ 통합된 YOUTUBE SEARCH ══
 function doSearch(){
   var q=document.getElementById('searchIn').value.trim();
-  var key=getKey();
-  if(!key){
-    toast('먼저 API 키를 설정해줘');
-    showKeyPrompt();
+  // 검색어가 없으면 내 라이브러리 화면으로 복원
+  if(!q){
+    document.getElementById('searchResults').innerHTML='<div class="s-sec">내 라이브러리</div><div id="libRows"></div>';
+    renderLib();
     return;
   }
-  if(!q){toast('검색어를 입력해줘');return}
+  var key=getKey();
+  if(!key){toast('먼저 API 키를 설정해줘');showKeyPrompt();return}
+
   document.getElementById('searchResults').innerHTML='<div class="s-loading"><div class="s-spinner"></div>검색 중...</div>';
-  var url='https://www.googleapis.com/youtube/v3/search?part=snippet&q='+encodeURIComponent(q)+'&type=video&maxResults=15&key='+key;
-  fetch(url)
+  fetch('https://www.googleapis.com/youtube/v3/search?part=snippet&q='+encodeURIComponent(q)+'&type=video&maxResults=15&key='+key)
     .then(function(r){return r.json()})
     .then(function(data){
       if(data.error){
         if(data.error.code===403||data.error.code===400){
-          localStorage.removeItem('yt_key');
-          updateKeyStatus();
+          localStorage.removeItem('yt_api_key'); updateKeyStatus();
           toast('API 키 오류 — 다시 설정해줘');
           document.getElementById('searchResults').innerHTML='<div class="s-empty">API 키 오류<br>⚙ API 키 설정을 눌러줘</div>';
         }else{
-          document.getElementById('searchResults').innerHTML='<div class="s-empty">검색 실패: '+data.error.message+'</div>';
+          document.getElementById('searchResults').innerHTML='<div class="s-empty">검색 실패: '+esc(data.error.message)+'</div>';
         }
         return;
       }
-      renderYTResults(data.items||[]);
+      renderSearchResults(data.items||[]);
     })
     .catch(function(){
-      document.getElementById('searchResults').innerHTML='<div class="s-empty">검색 실패<br>네트워크 상태를 확인해줘</div>';
+      document.getElementById('searchResults').innerHTML='<div class="s-empty">검색 실패<br>네트워크를 확인해줘</div>';
     });
 }
 
-function showKeyPrompt(){
-  var cur=getKey();
-  var k=prompt('YouTube Data API v3 키를 입력해줘\n\n발급: console.cloud.google.com\n1. 프로젝트 생성\n2. YouTube Data API v3 활성화\n3. 사용자 인증정보 → API 키',cur||'');
-  if(k&&k.trim()){setKey(k.trim());updateKeyStatus();toast('API 키 저장됨 ✓')}
-}
-
-function renderYTResults(items){
-  if(!items.length){document.getElementById('searchResults').innerHTML='<div class="s-empty">결과 없음</div>';return}
+function renderSearchResults(data){
+  var container=document.getElementById('searchResults');
+  if(!data||!data.length){
+    container.innerHTML='<div class="s-empty">검색 결과가 없어요</div>';
+    return;
+  }
   var html='<div class="s-sec">YouTube 검색 결과</div>';
-  items.forEach(function(v){
-    var vid_id=v.id&&v.id.videoId?v.id.videoId:'';
-    if(!vid_id)return;
-    var sn=v.snippet||{};
-    var th=sn.thumbnails&&sn.thumbnails.medium?sn.thumbnails.medium.url:'';
-    var title=sn.title||'';
-    var ch=sn.channelTitle||'';
-    var st=esc(title).replace(/'/g,'&#39;');
+  data.slice(0,15).forEach(function(item){
+    if(!item.id||!item.id.videoId)return;
+    var vId=item.id.videoId;
+    var snip=item.snippet||{};
+    var title=snip.title||'';
+    var author=snip.channelTitle||'';
+    var thumb=(snip.thumbnails&&snip.thumbnails.medium&&snip.thumbnails.medium.url)?snip.thumbnails.medium.url:'';
+    
+    var st=esc(title).replace(/'/g,"&#39;").replace(/"/g,"&quot;");
+    var sa=esc(author).replace(/'/g,"&#39;").replace(/"/g,"&quot;");
+    var sth=thumb?esc(thumb):'';
+
     html+='<div class="yt-item">'+
-      (th?'<img class="yt-thumb" src="'+th+'" loading="lazy">':'<div class="yt-thumb-ph"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div>')+
-      '<div class="yt-info"><div class="yt-title">'+esc(title)+'</div><div class="yt-meta">'+esc(ch)+'</div></div>'+
+      (thumb?'<img class="yt-thumb" src="'+thumb+'" loading="lazy">':'<div class="yt-thumb-ph"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div>')+
+      '<div class="yt-info"><div class="yt-title">'+esc(title)+'</div><div class="yt-meta">'+esc(author)+'</div></div>'+
       '<div class="yt-acts">'+
-        '<button class="yt-act g" data-vid="'+vid_id+'" data-title="'+st+'" data-action="play">'+
+        '<button class="yt-act g" data-vid="'+vId+'" data-title="'+st+'" data-artist="'+sa+'" data-thumb="'+sth+'" data-action="play" title="재생">'+
           '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'+
         '</button>'+
-        '<button class="yt-act" data-vid="'+vid_id+'" data-title="'+st+'" data-action="add">'+
+        '<button class="yt-act" data-vid="'+vId+'" data-title="'+st+'" data-artist="'+sa+'" data-thumb="'+sth+'" data-action="add" title="저장">'+
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>'+
+        '</button>'+
+        '<button class="yt-act" data-vid="'+vId+'" data-title="'+st+'" data-artist="'+sa+'" data-thumb="'+sth+'" data-action="sync" title="싱크 추가">'+
           '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>'+
         '</button>'+
       '</div>'+
     '</div>';
   });
-  document.getElementById('searchResults').innerHTML=html;
+  container.innerHTML=html;
+}
+
+function playYT(vId,title,artist,thumb){
+  if(!pReady){toast('연결 중... 잠깐만');return}
+  var existing=-1;
+  for(var x=0;x<songs.length;x++){if(vid(songs[x].url)===vId){existing=x;break}}
+  if(existing>=0){playSong(existing);return;}
+
+  var idx = songs.length;
+  songs.push({title:title, artist:artist||'', thumb:thumb||'', url:'https://www.youtube.com/watch?v='+vId, pairs:[]});
+  sv();
+  playSong(idx);
+  toast('▶ '+title+' — 플레이리스트에 추가됨');
+  fetchLyrics(title, artist||'', idx);
+}
+
+function addToLibrary(vId,title,artist,thumb){
+  for(var x=0;x<songs.length;x++){if(vid(songs[x].url)===vId){toast('"'+title+'" 이미 있어');return}}
+  var idx=songs.length;
+  songs.push({title:title, artist:artist||'', thumb:thumb||'', url:'https://www.youtube.com/watch?v='+vId, pairs:[]});
+  sv(); renderAll();
+  toast('"'+title+'" 플레이리스트에 추가됨 ✓');
+  fetchLyrics(title,artist||'',idx);
+}
+
+function addToSync(vId,title,artist,thumb){
+  var el=document.getElementById('upUrl');
+  el.value='https://www.youtube.com/watch?v='+vId;
+  el.dataset.title=title||'';
+  el.dataset.artist=artist||'';
+  el.dataset.thumb=thumb||'';
+  switchTab('upload');
+  toast('"'+title+'" URL 추가됨 — 가사를 넣어줘');
 }
 
 // ══ PARSE LYRICS ══
@@ -605,24 +658,27 @@ function playSong(i){
   if(i<0||i>=songs.length)return;
   curSong=i;var s=songs[i];
   var id=vid(s.url);
-  if(id&&pReady){player.loadVideoById(id);player.playVideo()}
+  if(id&&pReady){player.loadVideoById(id);player.playVideo();}
+  
+  // 미니 플레이어 정보 업데이트 완벽 처리
   document.getElementById('miniTitle').textContent=s.title;
+  var mSub = document.querySelector('.mini-sub');
+  if(mSub) mSub.textContent=s.artist||'Sootify';
+  
+  var mThumb = document.querySelector('.mini-thumb');
+  if(mThumb){
+    mThumb.innerHTML = s.thumb
+      ? '<img src="'+s.thumb+'" style="width:100%;height:100%;object-fit:cover;display:block;">'
+      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
+  }
+
   document.getElementById('miniPlayer').classList.add('on');
   document.getElementById('poSong').textContent=s.title;
   document.getElementById('poTopSong').textContent=s.title;
   document.getElementById('poArtist').textContent=s.artist||'Sootify';
-  buildPoLines();renderAll();
+  buildPoLines(); renderAll();
 }
-function playFromVid(videoId,title){
-  if(!pReady){toast('연결 중... 잠깐만');return}
-  curSong=-2;
-  player.loadVideoById(videoId);player.playVideo();
-  document.getElementById('miniTitle').textContent=title;
-  document.getElementById('miniPlayer').classList.add('on');
-  document.getElementById('poSong').textContent=title;
-  document.getElementById('poTopSong').textContent=title;
-  document.getElementById('poLines').innerHTML='';poLines=[];
-}
+
 function buildPoLines(){
   var c=document.getElementById('poLines');c.innerHTML='';poLines=[];
   if(curSong<0)return;
@@ -663,7 +719,6 @@ function delCur(){
   renderAll();toast('삭제됨');
 }
 
-
 // ══ 자동 가사 fetch (lrclib.net) ══
 function fetchLyrics(title, artist, songIdx){
   var q=encodeURIComponent(title+(artist?' '+artist:''));
@@ -672,10 +727,7 @@ function fetchLyrics(title, artist, songIdx){
     .then(function(data){
       if(!data||!data.length)return;
       var best=null;
-      // syncedLyrics 있는 거 우선
-      for(var i=0;i<data.length;i++){
-        if(data[i].syncedLyrics){best=data[i];break}
-      }
+      for(var i=0;i<data.length;i++){if(data[i].syncedLyrics){best=data[i];break}}
       if(!best&&data[0].plainLyrics)best=data[0];
       if(!best)return;
 
@@ -688,7 +740,6 @@ function fetchLyrics(title, artist, songIdx){
           toast('가사 자동 적용됨 ✓');
         }
       } else if(best.plainLyrics){
-        // 타임스탬프 없는 평문 가사
         var lines=best.plainLyrics.split('\n').filter(function(l){return l.trim()});
         var pairs=lines.map(function(l){return {jp:l,kr:'',ts:null}});
         if(pairs.length&&songs[songIdx]){
@@ -697,8 +748,7 @@ function fetchLyrics(title, artist, songIdx){
           toast('가사 적용됨 (싱크 없음)');
         }
       }
-    })
-    .catch(function(){/* 실패해도 무시 */});
+    }).catch(function(){});
 }
 
 function parseLRC(lrc){
@@ -750,11 +800,10 @@ function makeSongRow(s,i){
   row.appendChild(btn);
   return row;
 }
-function rowHTML(s,i){return makeSongRow(s,i).outerHTML}
 function renderAll(){
   renderHome();renderPL();
-  // 검색 탭은 검색 결과 보여주는 중이면 건드리지 않음
   var sres=document.getElementById('searchResults');
+  // 검색 화면에 라이브러리가 켜져있을 때만 다시 렌더링
   if(sres&&sres.querySelector('.s-sec')&&sres.querySelector('.s-sec').textContent==='내 라이브러리'){
     renderLib();
   }
@@ -785,21 +834,22 @@ function renderPL(){
 
 // ══ EVENT DELEGATION ══
 document.addEventListener('click',function(e){
+  // 통합된 검색 결과 버튼 위임
+  var ytAct=e.target.closest('[data-action]');
+  if(ytAct){
+    var v=ytAct.dataset.vid, t=ytAct.dataset.title, a=ytAct.dataset.artist, th=ytAct.dataset.thumb;
+    if(ytAct.dataset.action==='play') playYT(v,t,a,th);
+    else if(ytAct.dataset.action==='add') addToLibrary(v,t,a,th);
+    else if(ytAct.dataset.action==='sync') addToSync(v,t,a,th);
+    return;
+  }
   // 곡 재생
   var playEl=e.target.closest('[data-play]');
   if(playEl&&!e.target.closest('[data-del]')){playSong(parseInt(playEl.dataset.play));return}
   // 곡 삭제
   var delEl=e.target.closest('[data-del]');
   if(delEl){e.stopPropagation();delSong(parseInt(delEl.dataset.del));return}
-  // YT 결과 버튼
-  var ytAct=e.target.closest('[data-action]');
-  if(ytAct){
-    var v=ytAct.dataset.vid,t=ytAct.dataset.title;
-    if(ytAct.dataset.action==='play')playFromVid(v,t);
-    else{document.getElementById('upUrl').value='https://www.youtube.com/watch?v='+v;switchTab('upload');toast('"'+t+'" URL 추가됨')}
-    return;
-  }
-  // 미니 플레이어
+  // 미니 플레이어 (버튼 클릭 아닐때만 열리도록)
   if(e.target.closest('#miniPlayer')&&!e.target.closest('.mini-btn')){
     document.getElementById('playerOverlay').classList.add('on');return;
   }
@@ -818,19 +868,29 @@ function switchTab(name){
   if(name==='search')renderLib();
 }
 
-// ══ 버튼 바인딩 ══
+// ══ INIT ══
 document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('keyBtn').addEventListener('click',showKeyPrompt);
   document.getElementById('searchBtn').addEventListener('click',doSearch);
   document.getElementById('searchIn').addEventListener('keydown',function(e){if(e.key==='Enter')doSearch()});
+  
   document.getElementById('soBackBtn').addEventListener('click',closeSy);
   document.getElementById('soSaveBtn').addEventListener('click',saveSong);
   document.getElementById('soPlayBtn').addEventListener('click',togglePlay);
   document.getElementById('tapBtn').addEventListener('click',stamp);
   document.getElementById('undoBtn').addEventListener('click',undo);
   document.getElementById('startSyncBtn').addEventListener('click',startSync);
-  document.getElementById('miniPlayBtn').addEventListener('click',function(e){e.stopPropagation();togglePlay()});
-  document.getElementById('miniNextBtn').addEventListener('click',function(e){e.stopPropagation();nextSong()});
+  
+  // 미니 플레이어 재생 버튼 버그(이벤트 위임 꼬임) 방지
+  document.getElementById('miniPlayBtn').addEventListener('click',function(e){
+    e.stopPropagation();
+    togglePlay();
+  });
+  document.getElementById('miniNextBtn').addEventListener('click',function(e){
+    e.stopPropagation();
+    nextSong();
+  });
+
   document.getElementById('poDownBtn').addEventListener('click',function(){document.getElementById('playerOverlay').classList.remove('on')});
   document.getElementById('poPlayBtn').addEventListener('click',togglePlay);
   document.getElementById('poPrevBtn').addEventListener('click',prevSong);
@@ -840,9 +900,10 @@ document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('plShufBtn').addEventListener('click',function(){shuf=!shuf;this.classList.toggle('on',shuf);toast(shuf?'셔플 켜짐':'셔플 꺼짐')});
   document.getElementById('soTrack').addEventListener('click',function(e){doSeek(e,this)});
   document.getElementById('poTrack').addEventListener('click',function(e){doSeek(e,this)});
+  
   initKeyModal();
   updateKeyStatus();
-  // 저장 모달
+  
   document.getElementById('saveConfirmBtn').addEventListener('click',function(e){e.stopPropagation();confirmSave()});
   document.getElementById('saveCancelBtn').addEventListener('click',function(e){e.stopPropagation();document.getElementById('saveModal').style.display='none'});
   document.getElementById('saveModal').addEventListener('click',function(e){if(e.target===this)this.style.display='none'});
@@ -862,192 +923,9 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 var toastT;
 function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){el.classList.remove('show')},2200)}
 
-
-// ══ API 키 ══
-function getKey(){return localStorage.getItem('yt_api_key')||''}
-function setKey(k){localStorage.setItem('yt_api_key',k)}
-function showKeyPrompt(){
-  var modal=document.getElementById('keyModal');
-  var input=document.getElementById('keyInput');
-  input.value=getKey();
-  modal.style.display='flex';
-  setTimeout(function(){input.focus()},100);
-}
-function closeKeyModal(){
-  document.getElementById('keyModal').style.display='none';
-}
-function initKeyModal(){
-  document.getElementById('keyCancelBtn').addEventListener('click',closeKeyModal);
-  document.getElementById('keyConfirmBtn').addEventListener('click',function(){
-    var k=document.getElementById('keyInput').value.trim();
-    if(k){setKey(k);updateKeyStatus();toast('API 키 저장됨 ✓');}
-    closeKeyModal();
-  });
-  document.getElementById('keyModal').addEventListener('click',function(e){
-    if(e.target===this)closeKeyModal();
-  });
-}
-function updateKeyStatus(){
-  var el=document.getElementById('keyStatus');
-  if(!el)return;
-  if(getKey()){el.textContent='API 키 설정됨';el.style.color='#1db954';}
-  else{el.textContent='API 키 없음';el.style.color='#b3b3b3';}
-}
-
-// ══ YT 검색 ══
-function doYTSearch(){
-  var q=document.getElementById('searchIn').value.trim();
-  var key=getKey();
-  if(!key){toast('먼저 API 키를 설정해줘');showKeyPrompt();return}
-  if(!q){toast('검색어를 입력해줘');return}
-  document.getElementById('searchResults').innerHTML='<div style="text-align:center;color:#b3b3b3;font-size:13px;padding:32px 16px"><div style="width:22px;height:22px;border:2px solid #3e3e3e;border-top-color:#1db954;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div>검색 중...</div>';
-  fetch('https://www.googleapis.com/youtube/v3/search?part=snippet&q='+encodeURIComponent(q)+'&type=video&maxResults=15&key='+key)
-    .then(function(r){return r.json()})
-    .then(function(data){
-      if(data.error){
-        if(data.error.code===403||data.error.code===400){
-          localStorage.removeItem('yt_api_key');updateKeyStatus();
-          toast('API 키 오류 — 다시 설정해줘');
-          document.getElementById('searchResults').innerHTML='<div style="text-align:center;color:#b3b3b3;padding:32px 16px">API 키 오류<br>⚙ API 키 설정을 눌러줘</div>';
-        }else{
-          document.getElementById('searchResults').innerHTML='<div style="text-align:center;color:#b3b3b3;padding:32px 16px">검색 실패</div>';
-        }
-        return;
-      }
-      renderSearchResults(data.items||[]);
-    })
-    .catch(function(){
-      document.getElementById('searchResults').innerHTML='<div style="text-align:center;color:#b3b3b3;padding:32px 16px">검색 실패<br>네트워크를 확인해줘</div>';
-    });
-}
-
-function playYT(vId,title,artist,thumb){
-  if(!pReady){toast('연결 중... 잠깐만');return}
-  // 이미 라이브러리에 있으면 그냥 재생
-  var existing=-1;
-  for(var x=0;x<songs.length;x++){if(vid(songs[x].url)===vId){existing=x;break}}
-  if(existing>=0){
-    playSong(existing);return;
-  }
-  // 없으면 라이브러리에 추가 (가사 없이)
-  songs.push({title:title,artist:artist||'',thumb:thumb||'',url:'https://www.youtube.com/watch?v='+vId,pairs:[]});
-  sv();
-  curSong=songs.length-1;
-  player.loadVideoById(vId);player.playVideo();
-  document.getElementById('miniTitle').textContent=title;
-  document.getElementById('miniPlayer').classList.add('on');
-  document.getElementById('poSong').textContent=title;
-  document.getElementById('poTopSong').textContent=title;
-  document.getElementById('poArtist').textContent=artist||'Sootify';
-  document.getElementById('poLines').innerHTML='';poLines=[];
-  renderAll();
-  toast('▶ '+title+' — 플레이리스트에 추가됨');
-  // 가사 자동 fetch
-  fetchLyrics(title, artist||'', songs.length-1);
-}
-function addToLibrary(vId,title,artist,thumb){
-  // 이미 있으면 스킵
-  for(var x=0;x<songs.length;x++){if(vid(songs[x].url)===vId){toast('"'+title+'" 이미 있어');return}}
-  var idx=songs.length;
-  songs.push({title:title,artist:artist||'',thumb:thumb||'',url:'https://www.youtube.com/watch?v='+vId,pairs:[]});
-  sv();renderAll();
-  toast('"'+title+'" 플레이리스트에 추가됨 ✓');
-  fetchLyrics(title,artist||'',idx);
-}
-function addToSync(vId,title,artist,thumb){
-  var el=document.getElementById('upUrl');
-  el.value='https://www.youtube.com/watch?v='+vId;
-  el.dataset.title=title||'';
-  el.dataset.artist=artist||'';
-  el.dataset.thumb=thumb||'';
-  switchTab('upload');
-  toast('"'+title+'" URL 추가됨 — 가사를 넣어줘');
-}
-
-
-
-function renderSearchResults(data){
-  if(!data||!data.length){
-    document.getElementById('searchResults').innerHTML='<div style="text-align:center;color:#b3b3b3;padding:32px 16px">검색 결과가 없어요</div>';
-    return;
-  }
-  var container=document.getElementById('searchResults');
-  container.innerHTML='<div style="font-size:12px;font-weight:700;color:#b3b3b3;padding:14px 16px 6px;text-transform:uppercase;letter-spacing:.5px">YouTube 검색 결과</div>';
-  data.slice(0,15).forEach(function(item){
-    if(!item.id||!item.id.videoId)return;
-    var vId=item.id.videoId;
-    var snip=item.snippet||{};
-    var title=snip.title||'';
-    var author=snip.channelTitle||'';
-    var thumb=(snip.thumbnails&&snip.thumbnails.medium&&snip.thumbnails.medium.url)?snip.thumbnails.medium.url:'';
-
-    var row=document.createElement('div');
-    row.style.cssText='display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.04)';
-
-    if(thumb){
-      var img=document.createElement('img');
-      img.src=thumb;img.loading='lazy';
-      img.style.cssText='width:80px;height:45px;object-fit:cover;border-radius:4px;flex-shrink:0';
-      img.onerror=function(){this.style.display='none'};
-      row.appendChild(img);
-    } else {
-      var ph=document.createElement('div');
-      ph.style.cssText='width:80px;height:45px;background:#282828;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#b3b3b3';
-      ph.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
-      row.appendChild(ph);
-    }
-
-    var info=document.createElement('div');
-    info.style.cssText='flex:1;min-width:0';
-    info.innerHTML='<div style="font-size:13px;font-weight:500;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">'+esc(title)+'</div><div style="font-size:11px;color:#b3b3b3;margin-top:3px">'+esc(author)+'</div>';
-    row.appendChild(info);
-
-    var acts=document.createElement('div');
-    acts.style.cssText='display:flex;gap:6px;flex-shrink:0';
-
-    // 재생 버튼
-    var playBtn=document.createElement('button');
-    playBtn.style.cssText='background:#1db954;border:none;border-radius:6px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:#000';
-    playBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
-    playBtn.addEventListener('click',function(){playYT(vId,title,author,thumb)});
-
-    // 플리 추가 버튼 (재생 없이 저장만)
-    var libBtn=document.createElement('button');
-    libBtn.style.cssText='background:#282828;border:none;border-radius:6px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:#fff';
-    libBtn.title='플레이리스트에 추가';
-    libBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>';
-    libBtn.addEventListener('click',function(){addToLibrary(vId,title,author,thumb)});
-
-    // 싱크 추가 버튼
-    var addBtn=document.createElement('button');
-    addBtn.style.cssText='background:#282828;border:none;border-radius:6px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:#fff';
-    addBtn.title='가사 싱크 추가';
-    addBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>';
-    addBtn.addEventListener('click',function(){addToSync(vId,title,author,thumb)});
-
-    acts.appendChild(playBtn);acts.appendChild(libBtn);acts.appendChild(addBtn);
-    row.appendChild(acts);
-    container.appendChild(row);
-  });
-}
-
-
-// ══ 검색/키 버튼 바인딩 ══
-(function(){
-  var sb=document.getElementById('searchBtn');
-  var kb=document.getElementById('keyBtn');
-  var si=document.getElementById('searchIn');
-  if(sb)sb.addEventListener('click',doYTSearch);
-  if(kb)kb.addEventListener('click',showKeyPrompt);
-  if(si)si.addEventListener('keydown',function(e){if(e.key==='Enter')doYTSearch()});
-  updateKeyStatus();
-})();
-
 renderAll();
 </script>
 
-
-<!-- 저장 모달 -->
 <div id="saveModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.7);align-items:center;justify-content:center;padding:24px">
   <div style="background:#282828;border-radius:16px;padding:24px;width:100%;max-width:360px">
     <div style="font-size:16px;font-weight:700;margin-bottom:16px">곡 정보 설정</div>
@@ -1062,7 +940,6 @@ renderAll();
   </div>
 </div>
 
-<!-- API 키 모달 -->
 <div id="keyModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);align-items:center;justify-content:center;padding:24px">
   <div style="background:#282828;border-radius:16px;padding:24px;width:100%;max-width:360px">
     <div style="font-size:16px;font-weight:700;margin-bottom:8px">YouTube API 키 설정</div>
