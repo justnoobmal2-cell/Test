@@ -836,9 +836,10 @@ document.addEventListener('DOMContentLoaded',function(){
   initKeyModal();
   updateKeyStatus();
   // 저장 모달
-  document.getElementById('saveConfirmBtn').addEventListener('click',confirmSave);
-  document.getElementById('saveCancelBtn').addEventListener('click',function(){document.getElementById('saveModal').style.display='none'});
+  document.getElementById('saveConfirmBtn').addEventListener('click',function(e){e.stopPropagation();confirmSave()});
+  document.getElementById('saveCancelBtn').addEventListener('click',function(e){e.stopPropagation();document.getElementById('saveModal').style.display='none'});
   document.getElementById('saveModal').addEventListener('click',function(e){if(e.target===this)this.style.display='none'});
+  document.getElementById('saveModal').querySelector('div').addEventListener('click',function(e){e.stopPropagation()});
 });
 
 // ══ KEYBOARD ══
