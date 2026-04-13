@@ -751,7 +751,14 @@ function makeSongRow(s,i){
   return row;
 }
 function rowHTML(s,i){return makeSongRow(s,i).outerHTML}
-function renderAll(){renderHome();renderLib();renderPL()}
+function renderAll(){
+  renderHome();renderPL();
+  // 검색 탭은 검색 결과 보여주는 중이면 건드리지 않음
+  var sres=document.getElementById('searchResults');
+  if(sres&&sres.querySelector('.s-sec')&&sres.querySelector('.s-sec').textContent==='내 라이브러리'){
+    renderLib();
+  }
+}
 function renderHome(){
   var qg=document.getElementById('quickGrid'),hs=document.getElementById('homeSongs');
   if(!songs.length){qg.innerHTML='';hs.innerHTML='<div style="text-align:center;color:var(--muted);font-size:13px;padding:32px 16px">업로드 탭에서 첫 곡을 추가해봐요</div>';return}
