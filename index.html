@@ -342,7 +342,7 @@ html,body{height:100%;overflow:hidden;background:#121212;color:#fff;font-family:
   </div>
   <div class="po-ctrl">
     <div class="po-song" id="poSong">—</div>
-    <div class="po-artist">Sootify</div>
+    <div class="po-artist" id="poArtist">Sootify</div>
     <div class="po-prog-row">
       <div class="po-t" id="poTCur">0:00</div>
       <div class="po-track" id="poTrack"><div class="po-pfill" id="poPFill"></div></div>
@@ -570,12 +570,32 @@ function stamp(){
   if(navigator.vibrate)navigator.vibrate(18);
 }
 function undo(){var p=Math.max(0,curIdx-1);syncPairs[p].ts=null;curIdx=p;renderSo();toast('↩ 되돌렸어')}
+var _pendingSave={};
 function saveSong(){
   if(!syncPairs.filter(function(p){return p.ts!==null}).length){toast('타임스탬프 없어!');return}
-  var title=prompt('곡 제목:','')||'제목 없음';
-  var url=document.getElementById('upUrl').value.trim();
-  songs.push({title:title,url:url,pairs:JSON.parse(JSON.stringify(syncPairs))});
+  _pendingSave={
+    url:document.getElementById('upUrl').value.trim(),
+    pairs:JSON.parse(JSON.stringify(syncPairs)),
+    title:document.getElementById('upUrl').dataset.title||'',
+    artist:document.getElementById('upUrl').dataset.artist||'',
+    thumb:document.getElementById('upUrl').dataset.thumb||''
+  };
+  document.getElementById('saveTitle').value=_pendingSave.title||'제목 없음';
+  document.getElementById('saveArtist').value=_pendingSave.artist||'';
+  document.getElementById('saveModal').style.display='flex';
+}
+function confirmSave(){
+  var title=document.getElementById('saveTitle').value.trim()||'제목 없음';
+  var artist=document.getElementById('saveArtist').value.trim();
+  songs.push({
+    title:title,
+    artist:artist,
+    url:_pendingSave.url,
+    thumb:_pendingSave.thumb,
+    pairs:_pendingSave.pairs
+  });
   sv();renderAll();
+  document.getElementById('saveModal').style.display='none';
   document.getElementById('syncOverlay').classList.remove('on');
   toast('"'+title+'" 저장됨 ✓');
 }
@@ -590,6 +610,7 @@ function playSong(i){
   document.getElementById('miniPlayer').classList.add('on');
   document.getElementById('poSong').textContent=s.title;
   document.getElementById('poTopSong').textContent=s.title;
+  document.getElementById('poArtist').textContent=s.artist||'Sootify';
   buildPoLines();renderAll();
 }
 function playFromVid(videoId,title){
@@ -643,28 +664,60 @@ function delCur(){
 }
 
 // ══ RENDER ══
-function rowHTML(s,i){
-  return '<div class="song-row'+(i===curSong?' playing':'')+'" data-play="'+i+'">'+
-    '<div class="sr-thumb"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div>'+
-    '<div class="sr-info"><div class="sr-title">'+esc(s.title)+'</div><div class="sr-sub">'+s.pairs.length+'개 라인</div></div>'+
-    '<button class="sr-more" data-del="'+i+'">···</button>'+
-  '</div>';
+function makeSongRow(s,i){
+  var row=document.createElement('div');
+  row.className='song-row'+(i===curSong?' playing':'');
+  row.dataset.play=i;
+
+  if(s.thumb){
+    var img=document.createElement('img');
+    img.src=s.thumb;
+    img.style.cssText='width:48px;height:48px;object-fit:cover;border-radius:4px;flex-shrink:0';
+    img.onerror=function(){this.style.display='none'};
+    row.appendChild(img);
+  } else {
+    var ph=document.createElement('div');
+    ph.className='sr-thumb';
+    ph.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
+    row.appendChild(ph);
+  }
+
+  var info=document.createElement('div');
+  info.className='sr-info';
+  var t=document.createElement('div');t.className='sr-title';t.textContent=s.title;
+  var sub=document.createElement('div');sub.className='sr-sub';sub.textContent=s.artist||s.pairs.length+'개 라인';
+  info.appendChild(t);info.appendChild(sub);
+  row.appendChild(info);
+
+  var btn=document.createElement('button');
+  btn.className='sr-more';btn.dataset.del=i;btn.textContent='···';
+  row.appendChild(btn);
+  return row;
 }
+function rowHTML(s,i){return makeSongRow(s,i).outerHTML}
 function renderAll(){renderHome();renderLib();renderPL()}
 function renderHome(){
   var qg=document.getElementById('quickGrid'),hs=document.getElementById('homeSongs');
   if(!songs.length){qg.innerHTML='';hs.innerHTML='<div style="text-align:center;color:var(--muted);font-size:13px;padding:32px 16px">업로드 탭에서 첫 곡을 추가해봐요</div>';return}
-  qg.innerHTML=songs.slice(0,6).map(function(s,i){return '<div class="quick-item'+(i===curSong?' playing':'')+'" data-play="'+i+'"><div class="quick-thumb"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div><div class="quick-title">'+esc(s.title)+'</div></div>'}).join('');
-  hs.innerHTML=songs.map(rowHTML).join('');
+  qg.innerHTML=songs.slice(0,6).map(function(s,i){
+    var thumb=s.thumb?'<img src="'+s.thumb+'" style="width:56px;height:56px;object-fit:cover;flex-shrink:0;border-radius:6px 0 0 6px">':'<div class="quick-thumb"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div>';
+    return '<div class="quick-item'+(i===curSong?' playing':'')+'" data-play="'+i+'">'+thumb+'<div class="quick-title">'+esc(s.title)+'</div></div>';
+  }).join('');
+  hs.innerHTML='';
+  songs.forEach(function(s,i){hs.appendChild(makeSongRow(s,i))});
 }
 function renderLib(){
   var el=document.getElementById('libRows');if(!el)return;
-  el.innerHTML=songs.length?songs.map(rowHTML).join(''):'<div class="s-empty">저장된 곡이 없어요</div>';
+  if(!songs.length){el.innerHTML='<div class="s-empty">저장된 곡이 없어요</div>';return}
+  el.innerHTML='';
+  songs.forEach(function(s,i){el.appendChild(makeSongRow(s,i))});
 }
 function renderPL(){
   document.getElementById('plMeta').textContent=songs.length+'곡';
   var el=document.getElementById('plSongs');
-  el.innerHTML=songs.length?songs.map(rowHTML).join(''):'<div style="text-align:center;color:var(--muted);font-size:13px;padding:40px 16px;line-height:1.8">업로드 탭에서 곡을 추가하면<br>여기서 볼 수 있어요</div>';
+  if(!songs.length){el.innerHTML='<div style="text-align:center;color:var(--muted);font-size:13px;padding:40px 16px;line-height:1.8">업로드 탭에서 곡을 추가하면<br>여기서 볼 수 있어요</div>';return}
+  el.innerHTML='';
+  songs.forEach(function(s,i){el.appendChild(makeSongRow(s,i))});
 }
 
 // ══ EVENT DELEGATION ══
@@ -726,6 +779,10 @@ document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('poTrack').addEventListener('click',function(e){doSeek(e,this)});
   initKeyModal();
   updateKeyStatus();
+  // 저장 모달
+  document.getElementById('saveConfirmBtn').addEventListener('click',confirmSave);
+  document.getElementById('saveCancelBtn').addEventListener('click',function(){document.getElementById('saveModal').style.display='none'});
+  document.getElementById('saveModal').addEventListener('click',function(e){if(e.target===this)this.style.display='none'});
 });
 
 // ══ KEYBOARD ══
@@ -800,7 +857,7 @@ function doYTSearch(){
     });
 }
 
-function playYT(vId,title){
+function playYT(vId,title,artist,thumb){
   if(!pReady){toast('연결 중... 잠깐만');return}
   curSong=-2;
   player.loadVideoById(vId);player.playVideo();
@@ -808,15 +865,21 @@ function playYT(vId,title){
   document.getElementById('miniPlayer').classList.add('on');
   document.getElementById('poSong').textContent=title;
   document.getElementById('poTopSong').textContent=title;
+  document.getElementById('poArtist').textContent=artist||'Sootify';
   document.getElementById('poLines').innerHTML='';poLines=[];
   toast('▶ '+title);
 }
-
-function addToSync(vId,title){
-  document.getElementById('upUrl').value='https://www.youtube.com/watch?v='+vId;
+function addToSync(vId,title,artist,thumb){
+  var el=document.getElementById('upUrl');
+  el.value='https://www.youtube.com/watch?v='+vId;
+  el.dataset.title=title||'';
+  el.dataset.artist=artist||'';
+  el.dataset.thumb=thumb||'';
   switchTab('upload');
   toast('"'+title+'" URL 추가됨 — 가사를 넣어줘');
 }
+
+
 
 function renderSearchResults(data){
   if(!data||!data.length){
@@ -860,12 +923,12 @@ function renderSearchResults(data){
     var playBtn=document.createElement('button');
     playBtn.style.cssText='background:#1db954;border:none;border-radius:6px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:#000';
     playBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
-    playBtn.addEventListener('click',function(){playYT(vId,title)});
+    playBtn.addEventListener('click',function(){playYT(vId,title,author,thumb)});
 
     var addBtn=document.createElement('button');
     addBtn.style.cssText='background:#282828;border:none;border-radius:6px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:#fff';
     addBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>';
-    addBtn.addEventListener('click',function(){addToSync(vId,title)});
+    addBtn.addEventListener('click',function(){addToSync(vId,title,author,thumb)});
 
     acts.appendChild(playBtn);acts.appendChild(addBtn);
     row.appendChild(acts);
@@ -887,6 +950,22 @@ function renderSearchResults(data){
 
 renderAll();
 </script>
+
+
+<!-- 저장 모달 -->
+<div id="saveModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.7);align-items:center;justify-content:center;padding:24px">
+  <div style="background:#282828;border-radius:16px;padding:24px;width:100%;max-width:360px">
+    <div style="font-size:16px;font-weight:700;margin-bottom:16px">곡 정보 설정</div>
+    <div style="font-size:11px;color:#b3b3b3;margin-bottom:6px">제목</div>
+    <input id="saveTitle" placeholder="곡 제목" style="width:100%;background:#3e3e3e;border:none;border-radius:8px;color:#fff;font-family:'Noto Sans KR',sans-serif;font-size:13px;padding:12px 14px;outline:none;margin-bottom:12px">
+    <div style="font-size:11px;color:#b3b3b3;margin-bottom:6px">아티스트</div>
+    <input id="saveArtist" placeholder="아티스트명" style="width:100%;background:#3e3e3e;border:none;border-radius:8px;color:#fff;font-family:'Noto Sans KR',sans-serif;font-size:13px;padding:12px 14px;outline:none;margin-bottom:16px">
+    <div style="display:flex;gap:8px">
+      <button id="saveCancelBtn" style="flex:1;padding:12px;border-radius:8px;background:#3e3e3e;border:none;color:#b3b3b3;font-family:'Noto Sans KR',sans-serif;font-weight:700;font-size:13px;cursor:pointer">취소</button>
+      <button id="saveConfirmBtn" style="flex:1;padding:12px;border-radius:8px;background:#1db954;border:none;color:#000;font-family:'Noto Sans KR',sans-serif;font-weight:700;font-size:13px;cursor:pointer">저장</button>
+    </div>
+  </div>
+</div>
 
 <!-- API 키 모달 -->
 <div id="keyModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);align-items:center;justify-content:center;padding:24px">
