@@ -722,18 +722,21 @@ function makeSongRow(s,i){
   row.className='song-row'+(i===curSong?' playing':'');
   row.dataset.play=i;
 
+  var thumbWrap=document.createElement('div');
+  thumbWrap.style.cssText='width:48px;height:48px;border-radius:4px;flex-shrink:0;min-width:48px;background:#282828;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#b3b3b3';
   if(s.thumb){
     var img=document.createElement('img');
     img.src=s.thumb;
-    img.style.cssText='width:48px;height:48px;object-fit:cover;border-radius:4px;flex-shrink:0;min-width:48px';
-    img.onerror=function(){this.style.display='none'};
-    row.appendChild(img);
+    img.style.cssText='width:48px;height:48px;object-fit:cover;display:block';
+    img.onerror=function(){
+      this.remove();
+      thumbWrap.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
+    };
+    thumbWrap.appendChild(img);
   } else {
-    var ph=document.createElement('div');
-    ph.className='sr-thumb';
-    ph.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
-    row.appendChild(ph);
+    thumbWrap.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
   }
+  row.appendChild(thumbWrap);
 
   var info=document.createElement('div');
   info.className='sr-info';
@@ -934,6 +937,15 @@ function playYT(vId,title,artist,thumb){
   // 가사 자동 fetch
   fetchLyrics(title, artist||'', songs.length-1);
 }
+function addToLibrary(vId,title,artist,thumb){
+  // 이미 있으면 스킵
+  for(var x=0;x<songs.length;x++){if(vid(songs[x].url)===vId){toast('"'+title+'" 이미 있어');return}}
+  var idx=songs.length;
+  songs.push({title:title,artist:artist||'',thumb:thumb||'',url:'https://www.youtube.com/watch?v='+vId,pairs:[]});
+  sv();renderAll();
+  toast('"'+title+'" 플레이리스트에 추가됨 ✓');
+  fetchLyrics(title,artist||'',idx);
+}
 function addToSync(vId,title,artist,thumb){
   var el=document.getElementById('upUrl');
   el.value='https://www.youtube.com/watch?v='+vId;
@@ -985,17 +997,27 @@ function renderSearchResults(data){
     var acts=document.createElement('div');
     acts.style.cssText='display:flex;gap:6px;flex-shrink:0';
 
+    // 재생 버튼
     var playBtn=document.createElement('button');
     playBtn.style.cssText='background:#1db954;border:none;border-radius:6px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:#000';
     playBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
     playBtn.addEventListener('click',function(){playYT(vId,title,author,thumb)});
 
+    // 플리 추가 버튼 (재생 없이 저장만)
+    var libBtn=document.createElement('button');
+    libBtn.style.cssText='background:#282828;border:none;border-radius:6px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:#fff';
+    libBtn.title='플레이리스트에 추가';
+    libBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>';
+    libBtn.addEventListener('click',function(){addToLibrary(vId,title,author,thumb)});
+
+    // 싱크 추가 버튼
     var addBtn=document.createElement('button');
     addBtn.style.cssText='background:#282828;border:none;border-radius:6px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:#fff';
+    addBtn.title='가사 싱크 추가';
     addBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>';
     addBtn.addEventListener('click',function(){addToSync(vId,title,author,thumb)});
 
-    acts.appendChild(playBtn);acts.appendChild(addBtn);
+    acts.appendChild(playBtn);acts.appendChild(libBtn);acts.appendChild(addBtn);
     row.appendChild(acts);
     container.appendChild(row);
   });
