@@ -663,6 +663,59 @@ function delCur(){
   renderAll();toast('삭제됨');
 }
 
+
+// ══ 자동 가사 fetch (lrclib.net) ══
+function fetchLyrics(title, artist, songIdx){
+  var q=encodeURIComponent(title+(artist?' '+artist:''));
+  fetch('https://lrclib.net/api/search?q='+q)
+    .then(function(r){return r.json()})
+    .then(function(data){
+      if(!data||!data.length)return;
+      var best=null;
+      // syncedLyrics 있는 거 우선
+      for(var i=0;i<data.length;i++){
+        if(data[i].syncedLyrics){best=data[i];break}
+      }
+      if(!best&&data[0].plainLyrics)best=data[0];
+      if(!best)return;
+
+      if(best.syncedLyrics){
+        var pairs=parseLRC(best.syncedLyrics);
+        if(pairs.length&&songs[songIdx]){
+          songs[songIdx].pairs=pairs;
+          sv();
+          if(curSong===songIdx)buildPoLines();
+          toast('가사 자동 적용됨 ✓');
+        }
+      } else if(best.plainLyrics){
+        // 타임스탬프 없는 평문 가사
+        var lines=best.plainLyrics.split('\n').filter(function(l){return l.trim()});
+        var pairs=lines.map(function(l){return {jp:l,kr:'',ts:null}});
+        if(pairs.length&&songs[songIdx]){
+          songs[songIdx].pairs=pairs;
+          sv();
+          toast('가사 적용됨 (싱크 없음)');
+        }
+      }
+    })
+    .catch(function(){/* 실패해도 무시 */});
+}
+
+function parseLRC(lrc){
+  var lines=lrc.split('\n');
+  var pairs=[];
+  var re=/\[(\d+):(\d+\.\d+)\](.*)/;
+  lines.forEach(function(line){
+    var m=line.match(re);
+    if(!m)return;
+    var ts=parseInt(m[1])*60+parseFloat(m[2]);
+    var text=m[3].trim();
+    if(!text)return;
+    pairs.push({jp:text,kr:'',ts:Math.round(ts*10)/10});
+  });
+  return pairs;
+}
+
 // ══ RENDER ══
 function makeSongRow(s,i){
   var row=document.createElement('div');
@@ -672,7 +725,7 @@ function makeSongRow(s,i){
   if(s.thumb){
     var img=document.createElement('img');
     img.src=s.thumb;
-    img.style.cssText='width:48px;height:48px;object-fit:cover;border-radius:4px;flex-shrink:0';
+    img.style.cssText='width:48px;height:48px;object-fit:cover;border-radius:4px;flex-shrink:0;min-width:48px';
     img.onerror=function(){this.style.display='none'};
     row.appendChild(img);
   } else {
@@ -700,7 +753,7 @@ function renderHome(){
   var qg=document.getElementById('quickGrid'),hs=document.getElementById('homeSongs');
   if(!songs.length){qg.innerHTML='';hs.innerHTML='<div style="text-align:center;color:var(--muted);font-size:13px;padding:32px 16px">업로드 탭에서 첫 곡을 추가해봐요</div>';return}
   qg.innerHTML=songs.slice(0,6).map(function(s,i){
-    var thumb=s.thumb?'<img src="'+s.thumb+'" style="width:56px;height:56px;object-fit:cover;flex-shrink:0;border-radius:6px 0 0 6px">':'<div class="quick-thumb"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div>';
+    var thumb=s.thumb?'<img src="'+s.thumb+'" style="width:56px;height:56px;object-fit:cover;flex-shrink:0;border-radius:6px 0 0 6px;min-width:56px">':'<div class="quick-thumb"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div>';
     return '<div class="quick-item'+(i===curSong?' playing':'')+'" data-play="'+i+'">'+thumb+'<div class="quick-title">'+esc(s.title)+'</div></div>';
   }).join('');
   hs.innerHTML='';
@@ -859,7 +912,16 @@ function doYTSearch(){
 
 function playYT(vId,title,artist,thumb){
   if(!pReady){toast('연결 중... 잠깐만');return}
-  curSong=-2;
+  // 이미 라이브러리에 있으면 그냥 재생
+  var existing=-1;
+  for(var x=0;x<songs.length;x++){if(vid(songs[x].url)===vId){existing=x;break}}
+  if(existing>=0){
+    playSong(existing);return;
+  }
+  // 없으면 라이브러리에 추가 (가사 없이)
+  songs.push({title:title,artist:artist||'',thumb:thumb||'',url:'https://www.youtube.com/watch?v='+vId,pairs:[]});
+  sv();
+  curSong=songs.length-1;
   player.loadVideoById(vId);player.playVideo();
   document.getElementById('miniTitle').textContent=title;
   document.getElementById('miniPlayer').classList.add('on');
@@ -867,7 +929,10 @@ function playYT(vId,title,artist,thumb){
   document.getElementById('poTopSong').textContent=title;
   document.getElementById('poArtist').textContent=artist||'Sootify';
   document.getElementById('poLines').innerHTML='';poLines=[];
-  toast('▶ '+title);
+  renderAll();
+  toast('▶ '+title+' — 플레이리스트에 추가됨');
+  // 가사 자동 fetch
+  fetchLyrics(title, artist||'', songs.length-1);
 }
 function addToSync(vId,title,artist,thumb){
   var el=document.getElementById('upUrl');
