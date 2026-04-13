@@ -379,7 +379,7 @@ document.getElementById('homeGreeting').textContent=h<12?'좋은 아침이에요
 // ══ YT API ══
 function onYouTubeIframeAPIReady(){
   player=new YT.Player('yt',{height:'1',width:'1',
-    // 자동재생(autoplay:1) 활성화
+    // 자동재생 활성화
     playerVars:{controls:0,autoplay:1,playsinline:1},
     events:{
       onReady:function(){pReady=true;setApi('r')},
@@ -388,6 +388,14 @@ function onYouTubeIframeAPIReady(){
         playing=e.data===YT.PlayerState.PLAYING;
         updBtns();
         if(playing)startRaf();else stopRaf();
+        
+        // 🎵 곡이 완전히 끝났을 때 다음 곡으로 넘기는 핵심 로직
+        if(e.data===YT.PlayerState.ENDED){
+          // 검색 미리듣기(-2) 상태가 아닌, 실제 플레이리스트 곡을 듣고 있을 때만 다음 곡으로 넘어감
+          if(curSong >= 0) {
+            nextSong();
+          }
+        }
       }
     }
   });
@@ -511,8 +519,8 @@ function renderSearchResults(data){
     var author=snip.channelTitle||'';
     var thumb=(snip.thumbnails&&snip.thumbnails.medium&&snip.thumbnails.medium.url)?snip.thumbnails.medium.url:'';
     
-    var st=esc(title).replace(/'/g,"&#39;").replace(/"/g,"&quot;");
-    var sa=esc(author).replace(/'/g,"&#39;").replace(/"/g,"&quot;");
+    var st=esc(title).replace(/'/g,"'").replace(/"/g,""");
+    var sa=esc(author).replace(/'/g,"'").replace(/"/g,""");
     var sth=thumb?esc(thumb):'';
 
     html+='<div class="yt-item">'+
@@ -919,7 +927,7 @@ document.addEventListener('keydown',function(e){
   if((e.ctrlKey||e.metaKey)&&e.code==='KeyZ'){e.preventDefault();undo()}
 });
 
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function esc(s){return String(s||'').replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>')}
 var toastT;
 function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){el.classList.remove('show')},2200)}
 
