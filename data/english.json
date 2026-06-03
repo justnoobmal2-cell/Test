@@ -1,0 +1,30 @@
+{
+  "name": "영어",
+  "units": [
+    { "group": "어법", "topics": ["시제", "관계사", "수일치"] },
+    { "group": "어휘", "topics": ["기본 어휘"] }
+  ],
+  "questions": [
+    {
+      "id": "e1",
+      "topic": "시제",
+      "difficulty": "하",
+      "tags": [],
+      "type": "choice",
+      "question": "She ____ to school every day.",
+      "choices": ["go", "goes", "going", "gone"],
+      "answer": "goes",
+      "explanation": "주어가 3인칭 단수(She)이고 현재 시제이므로 동사에 -es를 붙여 'goes'."
+    },
+    {
+      "id": "e2",
+      "topic": "기본 어휘",
+      "difficulty": "하",
+      "tags": [],
+      "type": "short",
+      "question": "'환경'을 뜻하는 영어 단어를 쓰시오. (소문자로)",
+      "answer": "environment",
+      "explanation": "environment = 환경."
+    }
+  ]
+}
