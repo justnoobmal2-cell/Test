@@ -1,0 +1,31 @@
+{
+  "name": "과학",
+  "units": [
+    { "group": "물리", "topics": ["힘과 운동", "에너지"] },
+    { "group": "화학", "topics": ["물질의 구성"] },
+    { "group": "생명과학", "topics": ["세포"] }
+  ],
+  "questions": [
+    {
+      "id": "s1",
+      "topic": "힘과 운동",
+      "difficulty": "중",
+      "tags": [],
+      "type": "short",
+      "question": "질량 2 kg인 물체에 4 N의 힘이 작용할 때, 가속도는 몇 m/s²인가? (단위 없이 숫자만)",
+      "answer": "2",
+      "explanation": "F = ma → a = F/m = 4 / 2 = 2 m/s²."
+    },
+    {
+      "id": "s2",
+      "topic": "물질의 구성",
+      "difficulty": "하",
+      "tags": [],
+      "type": "choice",
+      "question": "물(H₂O) 분자 1개를 이루는 원자의 총 개수는?",
+      "choices": ["1", "2", "3", "4"],
+      "answer": "3",
+      "explanation": "수소 원자 2개 + 산소 원자 1개 = 3개."
+    }
+  ]
+}

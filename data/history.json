@@ -1,0 +1,30 @@
+{
+  "name": "한국사",
+  "units": [
+    { "group": "전근대", "topics": ["삼국시대", "고려", "조선"] },
+    { "group": "근현대", "topics": ["개항기", "일제강점기", "현대"] }
+  ],
+  "questions": [
+    {
+      "id": "h1",
+      "topic": "삼국시대",
+      "difficulty": "하",
+      "tags": [],
+      "type": "choice",
+      "question": "한강 유역을 차지하며 6세기에 전성기를 맞은 나라는?",
+      "choices": ["고구려", "백제", "신라", "가야"],
+      "answer": "신라",
+      "explanation": "신라 진흥왕은 6세기에 한강 유역을 장악하며 전성기를 이루었다."
+    },
+    {
+      "id": "h2",
+      "topic": "조선",
+      "difficulty": "중",
+      "tags": [],
+      "type": "short",
+      "question": "훈민정음을 창제하여 백성이 쉽게 글을 익히도록 한 조선의 왕은?",
+      "answer": "세종",
+      "explanation": "세종대왕은 1443년 훈민정음을 창제하였다."
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "subjects": [
+    { "id": "math",    "name": "수학",   "icon": "➗", "color": "#7C5CFF", "file": "math.json" },
+    { "id": "korean",  "name": "국어",   "icon": "📖", "color": "#FF6B6B", "file": "korean.json" },
+    { "id": "english", "name": "영어",   "icon": "🔤", "color": "#1FB6A8", "file": "english.json" },
+    { "id": "science", "name": "과학",   "icon": "🔬", "color": "#2E9BFF", "file": "science.json" },
+    { "id": "social",  "name": "사회",   "icon": "🌏", "color": "#FF9F1C", "file": "social.json" },
+    { "id": "history", "name": "한국사", "icon": "🏯", "color": "#A0762E", "file": "history.json" }
+  ]
+}
