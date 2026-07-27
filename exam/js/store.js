@@ -9,7 +9,7 @@ const Store = (() => {
     bookmarks: [],     // problemId[]
     memos: {},         // { problemId: "메모" }
     sessions: [],      // 최근 학습 세션 기록
-    settings: { showTimer: true, shuffle: true, seedEnabled: true }
+    settings: { seedEnabled: true, theme: "light", grade: "고1" }
   });
 
   let db = empty();

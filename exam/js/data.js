@@ -1,158 +1,254 @@
 /* 기본 내장 문제 (샘플)
  *
- * 실제 평가원/교육청 기출 지문·문항은 저작권이 있어 이 저장소에 담지 않는다.
- * 아래 문제들은 앱 동작 확인용으로 직접 만든 연습 문항이며(source: "샘플"),
- * 실제 기출은 [문제 관리] 화면에서 JSON/CSV로 불러오거나 직접 추가한다.
+ * 실제 기출 지문·문항은 저작권이 있어 이 저장소에 담지 않는다.
+ * 아래 문항은 앱 동작 확인용으로 직접 만든 연습 문제이며(source: "샘플"),
+ * 실제 기출은 [문제 관리]에서 JSON/CSV로 불러오거나 직접 추가한다.
+ * [문제 관리 › 설정]에서 샘플을 숨길 수 있다.
  *
  * 문제 객체 스키마
- *  id        고유 ID (문자열)
+ *  id        고유 ID (문자열, 비우면 자동 생성)
  *  year      시행 연도 (숫자)
- *  exam      시행 ("3월"|"4월"|"6월"|"7월"|"9월"|"10월"|"수능" 등)
- *  org       주관 ("평가원"|"교육청")
- *  grade     학년 ("고1"|"고2"|"고3"|"N수")
- *  subject   과목 ("수학"|"국어"|"영어" ...)
- *  track     선택과목 ("공통"|"미적분"|"확률과 통계" ...)
+ *  exam      시행 ("1학기 중간" | "3월" | "6월" | "수능" 등)
+ *  org       주관 ("내신" | "교육청" | "평가원") — 비우면 exam 으로 자동
+ *  grade     학년 ("고1" | "고2" | "고3")
+ *  subject   과목 ("통합사회" | "통합과학" | "수학" ...)
+ *  track     세부 과목 ("통합과학1" | "공통수학1" ...)
  *  unit      대단원
  *  topic     중단원
+ *  sub       소단원
  *  no        문항 번호
  *  points    배점
  *  type      "객관식" | "단답형"
- *  choices   객관식 선택지 문자열 배열 (없으면 ①~⑤ 번호만 표시)
- *  answer    객관식이면 1~5, 단답형이면 정답 문자열/숫자
- *  text      문제 본문 (선택)
- *  img       문제 이미지 URL 또는 dataURL (선택)
- *  solution  해설 텍스트 (선택)
- *  solutionImg 해설 이미지 (선택)
- *  level     체감 난이도 1~5 (선택)
- *  source    출처 메모 (선택)
+ *  choices   객관식 선택지 (없으면 ①~⑤ 번호만 표시)
+ *  answer    객관식이면 1~5, 단답형이면 정답 문자열
+ *  level     난이도 1(하) ~ 5(상)
+ *  text      문제 본문
+ *  img       문제 이미지 URL 또는 dataURL
+ *  solution  해설 텍스트
+ *  solutionImg 해설 이미지
+ *  source    출처 메모
  */
 const SEED_PROBLEMS = [
+  /* ---------------- 통합과학1 ---------------- */
   {
-    id: "sample-math-001", year: 2025, exam: "샘플", org: "샘플", grade: "고3",
-    subject: "수학", track: "공통", unit: "수학Ⅰ", topic: "지수와 로그",
+    id: "s-sci1-01", year: 2026, exam: "1학기 중간", org: "내신", grade: "고1",
+    subject: "통합과학", track: "통합과학1",
+    unit: "과학의 기초", topic: "과학의 기본량", sub: "기본량과 단위",
     no: 1, points: 2, type: "객관식", level: 1, source: "샘플",
-    text: "log₂ 8 + log₃ 9 의 값은?",
-    choices: ["3", "4", "5", "6", "7"], answer: 3,
-    solution: "log₂8 = 3, log₃9 = 2 이므로 합은 5."
+    text: "국제단위계(SI)의 기본량에 해당하지 않는 것은?",
+    choices: ["길이", "질량", "시간", "힘", "온도"], answer: 4,
+    solution: "SI 기본량은 길이·질량·시간·전류·온도·물질량·광도의 7가지이다. 힘은 질량과 가속도로부터 유도되는 유도량이다."
   },
   {
-    id: "sample-math-002", year: 2025, exam: "샘플", org: "샘플", grade: "고3",
-    subject: "수학", track: "공통", unit: "수학Ⅰ", topic: "등차수열과 등비수열",
-    no: 2, points: 3, type: "단답형", level: 1, source: "샘플",
-    text: "첫째항이 3이고 공차가 4인 등차수열 {aₙ} 에 대하여 a₁₀ 의 값을 구하시오.",
-    answer: "39",
-    solution: "a₁₀ = 3 + (10-1)×4 = 3 + 36 = 39."
+    id: "s-sci1-02", year: 2026, exam: "1학기 중간", org: "내신", grade: "고1",
+    subject: "통합과학", track: "통합과학1",
+    unit: "물질과 규칙성", topic: "자연의 구성 원소", sub: "우주의 시작과 원소의 생성",
+    no: 4, points: 3, type: "객관식", level: 2, source: "샘플",
+    text: "빅뱅 우주론에 따를 때, 빅뱅 이후 약 3분 이내에 주로 만들어진 원소로 옳게 짝지은 것은?",
+    choices: ["수소, 헬륨", "헬륨, 탄소", "탄소, 산소", "산소, 규소", "규소, 철"], answer: 1,
+    solution: "빅뱅 직후 핵합성으로 수소와 헬륨이 약 3:1(질량비)로 생성되었다. 탄소보다 무거운 원소는 이후 별의 내부에서 만들어진다."
   },
   {
-    id: "sample-math-003", year: 2025, exam: "샘플", org: "샘플", grade: "고3",
-    subject: "수학", track: "공통", unit: "수학Ⅰ", topic: "삼각함수",
-    no: 3, points: 3, type: "객관식", level: 2, source: "샘플",
-    text: "θ가 제2사분면의 각이고 sin θ = 3/5 일 때, tan θ 의 값은?",
-    choices: ["-4/3", "-3/4", "3/4", "4/3", "5/4"], answer: 2,
-    solution: "제2사분면이므로 cos θ = -4/5. tan θ = sin θ / cos θ = (3/5)/(-4/5) = -3/4."
+    id: "s-sci1-03", year: 2026, exam: "1학기 기말", org: "내신", grade: "고1",
+    subject: "통합과학", track: "통합과학1",
+    unit: "물질과 규칙성", topic: "물질의 규칙성과 성질", sub: "원소의 주기성",
+    no: 7, points: 3, type: "객관식", level: 2, source: "샘플",
+    text: "주기율표에서 같은 족에 속한 원소들의 화학적 성질이 비슷한 가장 큰 이유는?",
+    choices: ["원자 번호가 연속적이기 때문", "원자가 전자 수가 같기 때문", "중성자 수가 같기 때문",
+      "전자 껍질 수가 같기 때문", "원자량이 비슷하기 때문"], answer: 2,
+    solution: "화학적 성질은 원자가 전자가 결정한다. 같은 족 원소는 원자가 전자 수가 같아 성질이 비슷하다. 전자 껍질 수가 같은 것은 같은 주기이다."
   },
   {
-    id: "sample-math-004", year: 2025, exam: "샘플", org: "샘플", grade: "고3",
-    subject: "수학", track: "공통", unit: "수학Ⅰ", topic: "수열의 합",
-    no: 4, points: 3, type: "단답형", level: 2, source: "샘플",
-    text: "∑(k=1 부터 10까지) (2k − 1) 의 값을 구하시오.",
-    answer: "100",
-    solution: "2·(10·11/2) − 10 = 110 − 10 = 100. (홀수 10개의 합 = 10² = 100)"
+    id: "s-sci1-04", year: 2026, exam: "1학기 기말", org: "내신", grade: "고1",
+    subject: "통합과학", track: "통합과학1",
+    unit: "물질과 규칙성", topic: "물질의 규칙성과 성질", sub: "화학 결합과 물질의 성질",
+    no: 9, points: 3, type: "객관식", level: 3, source: "샘플",
+    text: "고체 상태의 염화 나트륨(NaCl)에 대한 설명으로 옳은 것은?",
+    choices: [
+      "전자를 공유하여 결합한다.",
+      "고체 상태에서 전기가 잘 통한다.",
+      "녹은 상태(액체)에서 전기가 통한다.",
+      "분자로 이루어진 물질이다.",
+      "물에 녹지 않는다."
+    ], answer: 3,
+    solution: "NaCl은 이온 결합 물질이다. 고체에서는 이온이 고정되어 전기가 통하지 않지만, 녹거나 물에 녹으면 이온이 자유롭게 이동해 전기가 통한다."
   },
   {
-    id: "sample-math-005", year: 2025, exam: "샘플", org: "샘플", grade: "고3",
-    subject: "수학", track: "공통", unit: "수학Ⅱ", topic: "함수의 극한",
-    no: 5, points: 2, type: "객관식", level: 1, source: "샘플",
-    text: "lim(x→2) (x² − 4)/(x − 2) 의 값은?",
-    choices: ["1", "2", "3", "4", "5"], answer: 4,
-    solution: "(x²−4)/(x−2) = x+2 (x≠2) 이므로 극한값은 4."
-  },
-  {
-    id: "sample-math-006", year: 2025, exam: "샘플", org: "샘플", grade: "고3",
-    subject: "수학", track: "공통", unit: "수학Ⅱ", topic: "미분계수와 도함수",
-    no: 6, points: 3, type: "단답형", level: 2, source: "샘플",
-    text: "f(x) = x³ − 3x² + 2 일 때, f′(3) 의 값을 구하시오.",
-    answer: "9",
-    solution: "f′(x) = 3x² − 6x 이므로 f′(3) = 27 − 18 = 9."
-  },
-  {
-    id: "sample-math-007", year: 2025, exam: "샘플", org: "샘플", grade: "고3",
-    subject: "수학", track: "공통", unit: "수학Ⅱ", topic: "정적분",
-    no: 7, points: 3, type: "단답형", level: 2, source: "샘플",
-    text: "∫(0부터 2까지) 3x² dx 의 값을 구하시오.",
-    answer: "8",
-    solution: "[x³] (0→2) = 8."
-  },
-  {
-    id: "sample-math-008", year: 2025, exam: "샘플", org: "샘플", grade: "고3",
-    subject: "수학", track: "확률과 통계", unit: "확률과 통계", topic: "순열과 조합",
-    no: 8, points: 2, type: "객관식", level: 1, source: "샘플",
-    text: "서로 다른 5명 중에서 3명을 뽑는 경우의 수는?",
-    choices: ["5", "10", "15", "20", "25"], answer: 2,
-    solution: "₅C₃ = 10."
-  },
-  {
-    id: "sample-math-009", year: 2025, exam: "샘플", org: "샘플", grade: "고3",
-    subject: "수학", track: "확률과 통계", unit: "확률과 통계", topic: "확률의 뜻과 활용",
-    no: 9, points: 3, type: "객관식", level: 2, source: "샘플",
-    text: "서로 다른 두 개의 주사위를 던질 때, 나온 두 눈의 수의 합이 5일 확률은?",
-    choices: ["1/12", "1/9", "1/6", "2/9", "1/4"], answer: 2,
-    solution: "합이 5인 경우는 (1,4)(2,3)(3,2)(4,1) 4가지. 4/36 = 1/9."
-  },
-  {
-    id: "sample-math-010", year: 2025, exam: "샘플", org: "샘플", grade: "고3",
-    subject: "수학", track: "확률과 통계", unit: "확률과 통계", topic: "조건부확률",
-    no: 10, points: 3, type: "객관식", level: 2, source: "샘플",
-    text: "두 사건 A, B 에 대하여 P(A) = 0.5, P(A∩B) = 0.2 일 때, P(B|A) 의 값은?",
-    choices: ["0.1", "0.2", "0.3", "0.4", "0.5"], answer: 4,
-    solution: "P(B|A) = P(A∩B)/P(A) = 0.2/0.5 = 0.4."
-  },
-  {
-    id: "sample-math-011", year: 2025, exam: "샘플", org: "샘플", grade: "고3",
-    subject: "수학", track: "미적분", unit: "미적분", topic: "수열의 극한",
-    no: 11, points: 3, type: "단답형", level: 2, source: "샘플",
-    text: "lim(n→∞) (2n² + 3n)/(n² + 1) 의 값을 구하시오.",
-    answer: "2",
-    solution: "분자·분모를 n² 으로 나누면 (2 + 3/n)/(1 + 1/n²) → 2."
-  },
-  {
-    id: "sample-math-012", year: 2025, exam: "샘플", org: "샘플", grade: "고3",
-    subject: "수학", track: "미적분", unit: "미적분", topic: "급수",
+    id: "s-sci1-05", year: 2026, exam: "2학기 중간", org: "내신", grade: "고1",
+    subject: "통합과학", track: "통합과학1",
+    unit: "시스템과 상호작용", topic: "역학 시스템", sub: "중력을 받는 물체의 운동",
     no: 12, points: 3, type: "단답형", level: 2, source: "샘플",
-    text: "∑(n=1 부터 ∞까지) (1/2)ⁿ 의 값을 구하시오.",
-    answer: "1",
-    solution: "첫째항 1/2, 공비 1/2 인 등비급수이므로 (1/2)/(1 − 1/2) = 1."
+    text: "정지 상태에서 자유 낙하시킨 물체의 2초 후 속력은 몇 m/s 인가?\n(단, 중력가속도는 10 m/s², 공기 저항은 무시한다.)",
+    answer: "20",
+    solution: "자유 낙하에서 v = gt 이므로 v = 10 × 2 = 20 m/s."
   },
   {
-    id: "sample-math-013", year: 2025, exam: "샘플", org: "샘플", grade: "고3",
-    subject: "수학", track: "기하", unit: "기하", topic: "이차곡선",
-    no: 13, points: 3, type: "객관식", level: 2, source: "샘플",
-    text: "포물선 y² = 8x 의 초점의 좌표는?",
-    choices: ["(1, 0)", "(2, 0)", "(4, 0)", "(0, 2)", "(0, 4)"], answer: 2,
-    solution: "y² = 4px 에서 4p = 8, p = 2 이므로 초점은 (2, 0)."
-  },
-  {
-    id: "sample-math-014", year: 2025, exam: "샘플", org: "샘플", grade: "고3",
-    subject: "수학", track: "기하", unit: "기하", topic: "이차곡선",
+    id: "s-sci1-06", year: 2026, exam: "2학기 중간", org: "내신", grade: "고1",
+    subject: "통합과학", track: "통합과학1",
+    unit: "시스템과 상호작용", topic: "역학 시스템", sub: "운동과 충돌",
     no: 14, points: 4, type: "단답형", level: 3, source: "샘플",
-    text: "타원 x²/25 + y²/9 = 1 의 두 초점 사이의 거리를 구하시오.",
-    answer: "8",
-    solution: "c² = 25 − 9 = 16, c = 4 이므로 두 초점 사이의 거리는 2c = 8."
+    text: "질량 2 kg인 물체가 일직선 위에서 3 m/s로 운동하다가 같은 방향으로 5 m/s가 되었다.\n이 물체가 받은 충격량의 크기는 몇 N·s 인가?",
+    answer: "4",
+    solution: "충격량은 운동량의 변화량과 같다. (2×5) − (2×3) = 10 − 6 = 4 N·s."
   },
   {
-    id: "sample-kor-001", year: 2025, exam: "샘플", org: "샘플", grade: "고3",
-    subject: "국어", track: "언어와 매체", unit: "언어와 매체", topic: "음운",
-    no: 35, points: 2, type: "객관식", level: 2, source: "샘플",
-    text: "'국물'이 [궁물]로 발음될 때 일어나는 음운 변동의 유형으로 옳은 것은?",
-    choices: ["교체", "탈락", "첨가", "축약", "탈락과 첨가"], answer: 1,
-    solution: "'ㄱ'이 뒤의 비음 'ㅁ'의 영향으로 'ㅇ'으로 바뀌는 비음화로, 음운의 교체에 해당한다."
+    id: "s-sci1-07", year: 2026, exam: "2학기 기말", org: "내신", grade: "고1",
+    subject: "통합과학", track: "통합과학1",
+    unit: "시스템과 상호작용", topic: "생명 시스템", sub: "생명 시스템에서 정보의 흐름",
+    no: 17, points: 3, type: "객관식", level: 2, source: "샘플",
+    text: "생명 중심 원리에서 DNA의 유전 정보가 RNA로 전달되는 과정을 무엇이라 하는가?",
+    choices: ["복제", "전사", "번역", "분화", "돌연변이"], answer: 2,
+    solution: "DNA → RNA 과정을 전사, RNA → 단백질 과정을 번역이라 한다. DNA → DNA 는 복제이다."
   },
   {
-    id: "sample-eng-001", year: 2025, exam: "샘플", org: "샘플", grade: "고3",
-    subject: "영어", track: "공통", unit: "읽기", topic: "어법",
-    no: 29, points: 3, type: "객관식", level: 2, source: "샘플",
-    text: "다음 빈칸에 들어갈 말로 가장 적절한 것은?\n\nThe number of students who applied for the program ______ increasing every year.",
-    choices: ["is", "are", "were", "have been", "being"], answer: 1,
-    solution: "'the number of + 복수명사'는 단수 취급하므로 단수 동사 is 가 적절하다."
+    id: "s-sci1-08", year: 2026, exam: "3월", org: "교육청", grade: "고1",
+    subject: "통합과학", track: "통합과학1",
+    unit: "시스템과 상호작용", topic: "지구 시스템", sub: "지구 시스템의 구성과 상호작용",
+    no: 10, points: 3, type: "객관식", level: 2, source: "샘플",
+    text: "화산이 분출하여 화산재가 대기 중으로 퍼져 햇빛을 가렸다.\n이 현상에 해당하는 지구 시스템의 상호작용으로 가장 적절한 것은?",
+    choices: ["지권 → 기권", "기권 → 수권", "수권 → 생물권", "생물권 → 지권", "기권 → 지권"], answer: 1,
+    solution: "지권에서 일어난 화산 활동이 기권에 영향을 준 사례이므로 지권 → 기권 상호작용이다."
+  },
+
+  /* ---------------- 통합과학2 ---------------- */
+  {
+    id: "s-sci2-01", year: 2026, exam: "1학기 중간", org: "내신", grade: "고1",
+    subject: "통합과학", track: "통합과학2",
+    unit: "변화와 다양성", topic: "지구 환경 변화와 생물다양성", sub: "지질 시대와 화석",
+    no: 3, points: 3, type: "객관식", level: 2, source: "샘플",
+    text: "표준 화석이 갖추어야 할 조건으로 가장 적절한 것은?",
+    choices: [
+      "생존 기간이 길고 분포 면적이 좁다.",
+      "생존 기간이 짧고 분포 면적이 넓다.",
+      "생존 기간이 길고 분포 면적이 넓다.",
+      "생존 기간이 짧고 분포 면적이 좁다.",
+      "생존 기간과 분포 면적은 관계가 없다."
+    ], answer: 2,
+    solution: "표준 화석은 특정 시대를 알려 주어야 하므로 생존 기간이 짧아야 하고, 여러 지역을 비교할 수 있도록 분포 면적은 넓어야 한다."
+  },
+  {
+    id: "s-sci2-02", year: 2026, exam: "1학기 기말", org: "내신", grade: "고1",
+    subject: "통합과학", track: "통합과학2",
+    unit: "변화와 다양성", topic: "화학 변화", sub: "산화와 환원",
+    no: 6, points: 3, type: "객관식", level: 2, source: "샘플",
+    text: "산화에 대한 설명으로 옳은 것은?",
+    choices: [
+      "산소를 잃는 반응이다.",
+      "전자를 얻는 반응이다.",
+      "산소를 얻거나 전자를 잃는 반응이다.",
+      "수소를 얻는 반응이다.",
+      "항상 열을 흡수하는 반응이다."
+    ], answer: 3,
+    solution: "산화는 산소를 얻거나 수소 또는 전자를 잃는 반응이고, 환원은 그 반대이다. 산화와 환원은 항상 동시에 일어난다."
+  },
+  {
+    id: "s-sci2-03", year: 2026, exam: "1학기 기말", org: "내신", grade: "고1",
+    subject: "통합과학", track: "통합과학2",
+    unit: "변화와 다양성", topic: "화학 변화", sub: "중화 반응",
+    no: 8, points: 3, type: "객관식", level: 2, source: "샘플",
+    text: "묽은 염산(HCl)에 수산화 나트륨(NaOH) 수용액을 넣어 완전히 중화시켰을 때 생성되는 물질을 옳게 짝지은 것은?",
+    choices: ["염화 나트륨과 물", "염화 나트륨과 수소", "수산화 나트륨과 물",
+      "염소 기체와 물", "나트륨과 산소"], answer: 1,
+    solution: "HCl + NaOH → NaCl + H₂O. 중화 반응의 알짜 이온 반응식은 H⁺ + OH⁻ → H₂O 이다."
+  },
+  {
+    id: "s-sci2-04", year: 2026, exam: "2학기 중간", org: "내신", grade: "고1",
+    subject: "통합과학", track: "통합과학2",
+    unit: "환경과 에너지", topic: "생태계와 환경 변화", sub: "생태계의 구성과 평형",
+    no: 11, points: 2, type: "객관식", level: 1, source: "샘플",
+    text: "생태계에서 죽은 생물이나 배설물을 분해하여 무기물로 되돌리는 역할을 하는 생물은?",
+    choices: ["생산자", "1차 소비자", "2차 소비자", "분해자", "비생물적 요인"], answer: 4,
+    solution: "세균·곰팡이와 같은 분해자가 유기물을 무기물로 분해하여 물질이 순환하도록 한다."
+  },
+  {
+    id: "s-sci2-05", year: 2026, exam: "2학기 기말", org: "내신", grade: "고1",
+    subject: "통합과학", track: "통합과학2",
+    unit: "환경과 에너지", topic: "에너지 전환과 활용", sub: "발전과 신재생 에너지",
+    no: 16, points: 3, type: "객관식", level: 2, source: "샘플",
+    text: "태양광 발전에서 일어나는 주된 에너지 전환으로 옳은 것은?",
+    choices: ["빛에너지 → 전기 에너지", "화학 에너지 → 전기 에너지", "역학적 에너지 → 전기 에너지",
+      "열에너지 → 빛에너지", "핵에너지 → 열에너지"], answer: 1,
+    solution: "태양광 발전은 광전 효과를 이용해 빛에너지를 곧바로 전기 에너지로 바꾼다. 태양열 발전은 열 → 역학적 → 전기로 바뀌는 점이 다르다."
+  },
+
+  /* ---------------- 통합사회1 ---------------- */
+  {
+    id: "s-soc1-01", year: 2026, exam: "1학기 중간", org: "내신", grade: "고1",
+    subject: "통합사회", track: "통합사회1",
+    unit: "통합적 관점", topic: "인간, 사회, 환경을 바라보는 시각", sub: "시간적 관점",
+    no: 2, points: 2, type: "객관식", level: 1, source: "샘플",
+    text: "다음 설명에 해당하는 관점으로 가장 적절한 것은?\n\n어떤 사회 현상을 이해하기 위해 그 현상이 나타나게 된 역사적 배경과 변화 과정을 살펴본다.",
+    choices: ["시간적 관점", "공간적 관점", "사회적 관점", "윤리적 관점", "통합적 관점"], answer: 1,
+    solution: "역사적 맥락과 변화 과정에 주목하는 것은 시간적 관점이다. 공간적 관점은 위치와 지역, 사회적 관점은 제도와 구조, 윤리적 관점은 가치 판단에 주목한다."
+  },
+  {
+    id: "s-soc1-02", year: 2026, exam: "1학기 중간", org: "내신", grade: "고1",
+    subject: "통합사회", track: "통합사회1",
+    unit: "행복", topic: "행복한 삶의 조건", sub: "질 높은 정주 환경",
+    no: 5, points: 3, type: "객관식", level: 2, source: "샘플",
+    text: "행복한 삶의 조건 중 '질 높은 정주 환경'에 해당하는 사례로 가장 적절한 것은?",
+    choices: [
+      "시민들이 선거에 적극적으로 참여한다.",
+      "안정적인 일자리를 통해 소득이 늘어난다.",
+      "깨끗한 공기와 충분한 녹지가 갖추어져 있다.",
+      "타인을 배려하는 도덕적 실천을 한다.",
+      "사회 복지 제도가 확대된다."
+    ], answer: 3,
+    solution: "정주 환경은 인간이 살아가는 주거지와 그 주변 환경을 뜻한다. 자연환경의 質, 기반 시설, 안전 등이 여기에 해당한다."
+  },
+  {
+    id: "s-soc1-03", year: 2026, exam: "2학기 중간", org: "내신", grade: "고1",
+    subject: "통합사회", track: "통합사회1",
+    unit: "문화와 다양성", topic: "문화 상대주의와 보편 윤리", sub: "문화 상대주의",
+    no: 13, points: 3, type: "객관식", level: 2, source: "샘플",
+    text: "문화 상대주의에 대한 설명으로 옳은 것은?",
+    choices: [
+      "자기 문화를 기준으로 다른 문화를 평가한다.",
+      "다른 문화를 우월한 것으로 여겨 동경한다.",
+      "각 문화를 그 사회의 맥락 속에서 이해한다.",
+      "모든 문화는 우열을 가릴 수 있다고 본다.",
+      "보편 윤리에 어긋나는 문화도 무조건 인정한다."
+    ], answer: 3,
+    solution: "문화 상대주의는 문화를 그 사회의 환경과 역사적 맥락 속에서 이해하려는 태도이다. 다만 인간 존엄성을 해치는 문화까지 인정하는 극단적 문화 상대주의는 경계해야 한다."
+  },
+
+  /* ---------------- 통합사회2 ---------------- */
+  {
+    id: "s-soc2-01", year: 2026, exam: "1학기 기말", org: "내신", grade: "고1",
+    subject: "통합사회", track: "통합사회2",
+    unit: "인권 보장과 헌법", topic: "헌법의 역할과 시민 참여", sub: "헌법의 기본권",
+    no: 4, points: 3, type: "객관식", level: 2, source: "샘플",
+    text: "다음 중 헌법이 보장하는 사회권에 해당하는 것은?",
+    choices: ["신체의 자유", "선거권", "인간다운 생활을 할 권리", "재판을 받을 권리", "청원권"], answer: 3,
+    solution: "사회권은 국가에 인간다운 생활의 보장을 요구할 수 있는 권리로 교육권·근로권·환경권 등이 포함된다. 신체의 자유는 자유권, 선거권은 참정권, 재판청구권·청원권은 청구권이다."
+  },
+  {
+    id: "s-soc2-02", year: 2026, exam: "2학기 중간", org: "내신", grade: "고1",
+    subject: "통합사회", track: "통합사회2",
+    unit: "시장경제와 지속 가능 발전", topic: "자본주의와 합리적 선택", sub: "합리적 선택과 기회비용",
+    no: 9, points: 4, type: "단답형", level: 3, source: "샘플",
+    text: "영화를 보는 데 1만 원을 지출했다. 만약 그 시간에 아르바이트를 했다면 2만 원을 벌 수 있었다.\n영화 관람의 기회비용은 몇 만 원인가? (숫자만 쓰시오.)",
+    answer: "3",
+    solution: "기회비용 = 명시적 비용 + 암묵적 비용 = 1만 원(지출) + 2만 원(포기한 소득) = 3만 원."
+  },
+
+  /* ---------------- 공통수학1 ---------------- */
+  {
+    id: "s-math-01", year: 2026, exam: "1학기 중간", org: "내신", grade: "고1",
+    subject: "수학", track: "공통수학1",
+    unit: "방정식과 부등식", topic: "복소수", sub: "켤레복소수",
+    no: 6, points: 3, type: "단답형", level: 2, source: "샘플",
+    text: "복소수 z = 3 + 2i 에 대하여 z + z̄ 의 값을 구하시오. (단, z̄ 는 z 의 켤레복소수이다.)",
+    answer: "6",
+    solution: "z̄ = 3 − 2i 이므로 z + z̄ = (3 + 2i) + (3 − 2i) = 6. 일반적으로 z = a + bi 이면 z + z̄ = 2a 이다."
+  },
+  {
+    id: "s-math-02", year: 2026, exam: "1학기 중간", org: "내신", grade: "고1",
+    subject: "수학", track: "공통수학1",
+    unit: "다항식", topic: "나머지정리", sub: "나머지정리와 그 활용",
+    no: 3, points: 3, type: "단답형", level: 2, source: "샘플",
+    text: "다항식 f(x) = x³ − 2x + 5 를 x − 1 로 나눈 나머지를 구하시오.",
+    answer: "4",
+    solution: "나머지정리에 의해 나머지는 f(1) = 1 − 2 + 5 = 4."
   }
 ];
