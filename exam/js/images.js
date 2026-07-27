@@ -11,7 +11,7 @@ const ImgStore = (() => {
   const DB_NAME = "kice-trainer-img", STORE = "img", VERSION = 1;
   let dbp = null;
 
-  const supported = () => typeof indexedDB !== "undefined" && indexedDB;
+  const supported = () => typeof indexedDB !== "undefined" && !!indexedDB;
 
   function open() {
     if (dbp) return dbp;
@@ -51,17 +51,18 @@ const ImgStore = (() => {
       return (all || []).reduce((a, v) => a + (typeof v === "string" ? v.length : 0), 0);
     },
 
-    /* 문제 목록에서 dataURL 이미지를 IndexedDB 로 옮기고 img 를 "idb" 로 바꾼다 */
-    async absorb(list) {
-      if (!supported()) return 0;
-      let moved = 0;
-      for (const p of list) {
-        if (typeof p.img === "string" && p.img.startsWith("data:")) {
-          try { await this.put(p.id, p.img); p.img = IMG_REF; moved++; }
-          catch (e) { console.warn("이미지 저장 실패", p.id, e); }
-        }
+    /* 문제 목록에서 dataURL 이미지를 IndexedDB 로 옮기고 img 를 "idb" 로 바꾼다.
+       onProgress(완료, 전체) 로 진행 상황을 알린다. 실패 건수도 함께 돌려준다. */
+    async absorb(list, onProgress) {
+      const targets = list.filter(p => typeof p.img === "string" && p.img.startsWith("data:"));
+      if (!supported() || !targets.length) return { moved: 0, failed: 0, total: targets.length };
+      let moved = 0, failed = 0;
+      for (const p of targets) {
+        try { await this.put(p.id, p.img); p.img = IMG_REF; moved++; }
+        catch (e) { failed++; console.warn("이미지 저장 실패", p.id, e); }
+        if (onProgress) onProgress(moved + failed, targets.length);
       }
-      return moved;
+      return { moved, failed, total: targets.length };
     },
 
     /* 백업용 — 문제 id 별 이미지를 객체로 뽑는다 */

@@ -2,7 +2,7 @@
 
 /* 배포된 파일이 최신인지 확인할 수 있게 버전을 노출한다.
    기능이 바뀔 때마다 올린다. */
-const APP_VERSION = "2026.07.27-4";
+const APP_VERSION = "2026.07.27-5";
 
 /* ---------------- 유틸 ---------------- */
 const view = () => document.getElementById("view");
@@ -60,6 +60,18 @@ function sheet(title, html) {
   hydrateImages(bg);
 }
 const closeSheet = () => document.querySelectorAll(".sheet-bg").forEach(s => s.remove());
+
+/* 오래 걸리는 작업용 — 사라지지 않고 문구만 바뀌는 토스트 */
+function progressToast(msg) {
+  document.querySelectorAll(".toast").forEach(t => t.remove());
+  const d = document.createElement("div");
+  d.className = "toast"; d.textContent = msg;
+  document.body.appendChild(d);
+  return {
+    set: t => { d.textContent = t; },
+    done: () => d.remove()
+  };
+}
 
 /* ---------------- 상태 ---------------- */
 let route = "home";
@@ -1197,12 +1209,18 @@ function ingest(text) {
   if (!list || !list.length) return toast("불러올 문제가 없습니다.");
   list.forEach(p => { if (!p.id) p.id = `p-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`; });
   const heavy = list.filter(p => typeof p.img === "string" && p.img.startsWith("data:")).length;
-  if (heavy) toast(`이미지 ${heavy}장 저장 중…`);
-  ImgStore.absorb(list)
-    .catch(() => 0)
-    .then(() => {
+  const pt = heavy ? progressToast(`이미지 저장 중… 0/${heavy}`) : null;
+
+  ImgStore.absorb(list, (done, total) => { if (pt) pt.set(`이미지 저장 중… ${done}/${total}`); })
+    .catch(() => ({ moved: 0, failed: heavy, total: heavy }))
+    .then(res => {
       const r = Store.addProblems(list, { replace: true });
-      toast(`${r.added}개 추가${r.updated ? `, ${r.updated}개 갱신` : ""}`);
+      if (pt) pt.done();
+      const bits = [`${r.added}문항 추가`];
+      if (r.updated) bits.push(`${r.updated}문항 갱신`);
+      if (res && res.moved) bits.push(`이미지 ${res.moved}장`);
+      if (res && res.failed) bits.push(`이미지 ${res.failed}장 실패`);
+      toast(bits.join(" · "));
       closeSheet(); render();
     });
 }
