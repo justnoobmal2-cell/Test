@@ -749,8 +749,10 @@ function renderBank() {
 
       <div class="card">
         <div class="card-title">추가하기</div>
+        <button class="btn primary block" style="margin-bottom:8px" data-act="bulk-open">
+          시험지 통째로 넣기</button>
         <div class="btn-row" style="margin-bottom:8px">
-          <button class="btn primary" data-act="new-problem">직접 입력</button>
+          <button class="btn outline" data-act="new-problem">직접 입력</button>
           <button class="btn outline" data-act="import-file">파일 불러오기</button>
         </div>
         <div class="btn-row">
@@ -787,6 +789,183 @@ function renderBank() {
       <div class="plist">${list.slice(0, 100).map(problemItem).join("") || `<div class="empty">결과 없음</div>`}</div>
       ${list.length > 100 ? `<div class="empty small">외 ${list.length - 100}문항</div>` : ""}
     </div>`;
+}
+
+/* ---------------- 일괄 가져오기 ----------------
+ * 시험지 한 회차를 통째로 넣는 화면.
+ * 1) 시험지 정보 + 정답표(+본문) 붙여넣기 → 문항 자동 생성
+ * 2) 번호 범위로 단원 지정 + 사진 일괄 첨부 → 저장
+ */
+let bulk = null;
+
+function newBulk() {
+  const g = Store.db.settings.grade || "고1";
+  const subject = Curriculum.subjects(g)[0] || Curriculum.subjects()[0];
+  return {
+    step: 1,
+    meta: {
+      year: new Date().getFullYear(), exam: "1학기 중간", grade: g,
+      subject, track: Curriculum.tracks(subject)[0] || ""
+    },
+    keyText: "", bodyText: "",
+    items: [], sel: new Set()
+  };
+}
+
+function bulkBuild() {
+  const b = bulk;
+  const keys = AnswerKey.parse(b.keyText);
+  const bodies = AutoTag.split(b.bodyText);
+  const bodyByNo = new Map(bodies.map(x => [x.no, x.text]));
+
+  let base = keys;
+  if (!base.length && bodies.length) base = bodies.map(x => ({ no: x.no, answer: "", type: "객관식" }));
+  if (!base.length) return toast("정답표나 본문 중 하나는 붙여넣어야 합니다.");
+
+  b.items = base.map(k => {
+    const text = bodyByNo.get(k.no) || "";
+    const guess = text ? AutoTag.suggest(text, b.meta.subject, b.meta.track, 1)[0] : null;
+    return {
+      no: k.no, answer: k.answer, type: k.type,
+      unit: guess ? guess.unit : "", topic: guess ? guess.topic : "", sub: guess ? guess.sub : "",
+      auto: !!guess, text, img: "", points: "", level: 3
+    };
+  });
+  b.sel = new Set();
+  b.step = 2;
+  render();
+  const tagged = b.items.filter(i => i.unit).length;
+  toast(`${b.items.length}문항 생성${tagged ? ` · ${tagged}개 단원 자동 추천` : ""}`);
+}
+
+function renderBulk() {
+  const b = bulk;
+  if (!b) { route = "bank"; return renderBank(); }
+  return b.step === 1 ? bulkStep1() : bulkStep2();
+}
+
+function bulkStep1() {
+  const m = bulk.meta;
+  const subjects = uniq(Curriculum.subjects().concat(Store.allProblems().map(p => p.subject))).filter(Boolean);
+  const tracks = Curriculum.tracks(m.subject);
+  const sel = (key, values) => `<select data-act="bulk-meta" data-key="${key}">
+      ${values.map(v => `<option value="${esc(v)}"${String(m[key]) === String(v) ? " selected" : ""}>${esc(v)}</option>`).join("")}
+    </select>`;
+
+  return `<div class="page-head spread">
+      <div><div class="page-title">시험지 통째로 넣기</div>
+      <div class="page-sub">정답표만 붙여넣어도 문항이 만들어집니다</div></div>
+      <button class="icon-btn muted" data-act="bulk-exit">${svg("close")}</button>
+    </div>
+    <div class="wrap pad-cta">
+      <div class="card">
+        <div class="card-title">시험지 정보</div>
+        <div class="grid3">
+          <label class="field"><span>연도</span><input type="number" data-act="bulk-meta" data-key="year" value="${esc(m.year)}"></label>
+          <label class="field"><span>시행</span>${sel("exam", EXAMS.map(e => e.key))}</label>
+          <label class="field"><span>학년</span>${sel("grade", GRADES)}</label>
+        </div>
+        <div class="grid2">
+          <label class="field" style="margin:0"><span>과목</span>${sel("subject", subjects)}</label>
+          <label class="field" style="margin:0"><span>세부 과목</span>${sel("track", tracks.length ? tracks : [""])}</label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">정답표</div>
+        <div class="small muted" style="margin-bottom:10px;line-height:1.7">
+          시험지 뒤의 정답표를 그대로 붙여넣으세요.<br>
+          <code class="mono">1 ③ 2 ⑤ 3 ①</code> · <code class="mono">1. 3</code> 줄바꿈 · <code class="mono">③⑤①②④</code> 나열 모두 됩니다.
+        </div>
+        <textarea data-act="bulk-key" style="min-height:110px" placeholder="1 ③  2 ⑤  3 ①  4 ②  5 ④">${esc(bulk.keyText)}</textarea>
+      </div>
+
+      <div class="card">
+        <div class="card-title">문제 본문 <span class="small muted">선택</span></div>
+        <div class="small muted" style="margin-bottom:10px;line-height:1.7">
+          시험지 PDF에서 글자를 긁어 붙여넣으면 문항별로 잘라서 넣고,
+          <b>단원까지 자동으로 추천</b>합니다. 없으면 비워 두세요.
+        </div>
+        <textarea data-act="bulk-body" style="min-height:130px" placeholder="1. 다음 중 국제단위계(SI)의 기본량이 아닌 것은?&#10;...&#10;2. ...">${esc(bulk.bodyText)}</textarea>
+      </div>
+    </div>
+    <div class="cta-bar"><div class="cta-inner">
+      <button class="btn primary block lg" data-act="bulk-build">문항 만들기</button>
+    </div></div>`;
+}
+
+function bulkStep2() {
+  const b = bulk;
+  const tagged = b.items.filter(i => i.unit).length;
+  const withImg = b.items.filter(i => i.img).length;
+  const n = b.sel.size;
+
+  return `<div class="page-head spread">
+      <div><div class="page-title">${b.items.length}문항</div>
+      <div class="page-sub">${esc(`${b.meta.year} ${b.meta.exam} · ${b.meta.track || b.meta.subject}`)}</div></div>
+      <button class="icon-btn muted" data-act="bulk-exit">${svg("close")}</button>
+    </div>
+    <div class="wrap pad-cta">
+      <div class="tiles" style="margin-bottom:12px">
+        <div class="tile"><div class="tile-v">${tagged}/${b.items.length}</div><div class="tile-l">단원 지정됨</div></div>
+        <div class="tile"><div class="tile-v">${withImg}</div><div class="tile-l">사진 첨부</div></div>
+        <div class="tile"><div class="tile-v">${b.items.filter(i => i.answer !== "" && i.answer != null).length}</div><div class="tile-l">정답 있음</div></div>
+      </div>
+
+      <div class="btn-row" style="margin-bottom:12px">
+        <button class="btn outline" data-act="bulk-photos">사진 일괄 첨부</button>
+        <button class="btn outline" data-act="bulk-all">${n ? "선택 해제" : "전체 선택"}</button>
+      </div>
+      <div class="small muted" style="margin-bottom:12px;line-height:1.7">
+        시험지는 보통 단원 순서대로 나오니, <b>여러 문항을 골라 한 번에 단원을 지정</b>하면 빠릅니다.
+      </div>
+
+      <div class="plist">${b.items.map((it, i) => {
+        const on = b.sel.has(i);
+        const leaf = it.sub || it.topic || it.unit;          // 제일 구체적인 단원을 앞에
+        const parent = [it.unit, it.sub ? it.topic : ""].filter(Boolean).join(" › ");
+        const ans = it.answer === "" || it.answer == null ? "–"
+          : esc(it.type === "객관식" ? (CIRCLE[Number(it.answer) - 1] || it.answer) : it.answer);
+        return `<div class="pitem" data-act="bulk-pick" data-i="${i}" style="${on ? "border-color:var(--accent);background:var(--accent-weak)" : ""}">
+          <div class="pitem-no ${it.unit ? "ok" : ""}">${it.no}</div>
+          <div class="pitem-body">
+            <div class="pitem-t">${leaf ? esc(leaf) : `<span class="muted">단원 미지정</span>`}${
+              it.auto && leaf ? ` <span class="tag hi">자동</span>` : ""}</div>
+            <div class="pitem-s">정답 ${ans}${parent ? ` · ${esc(parent)}` : ""}${
+              it.img ? " · 사진" : ""}${it.text ? " · 본문" : ""}</div>
+          </div>
+        </div>`;
+      }).join("")}</div>
+    </div>
+    <div class="cta-bar"><div class="cta-inner">
+      ${n ? `<button class="btn primary block lg" data-act="bulk-assign">선택한 ${n}문항에 단원 지정</button>`
+          : `<button class="btn primary block lg" data-act="bulk-save">${b.items.length}문항 저장</button>`}
+    </div></div>`;
+}
+
+/* 단원 고르기 시트 — 소단원 목록을 검색으로 좁혀 고른다 */
+let unitQuery = "";
+function unitPicker(onPickAct) {
+  const b = bulk;
+  const list = [];
+  Curriculum.tree(b.meta.subject, b.meta.track).forEach(u => {
+    u.topics.forEach(t => {
+      if (t.subs.length) t.subs.forEach(s => list.push({ unit: u.unit, topic: t.topic, sub: s }));
+      else list.push({ unit: u.unit, topic: t.topic, sub: "" });
+    });
+  });
+  const q = unitQuery.trim();
+  const shown = q ? list.filter(x => [x.unit, x.topic, x.sub].join(" ").includes(q)) : list;
+
+  sheet(`단원 지정 (${b.sel.size}문항)`, `
+    <input type="text" data-act="unit-search" value="${esc(unitQuery)}" placeholder="단원 검색" style="margin-bottom:12px">
+    <div class="plist" style="max-height:52vh;overflow-y:auto">${shown.map(x =>
+      `<div class="pitem" data-act="${onPickAct}" data-unit="${esc(x.unit)}" data-topic="${esc(x.topic)}" data-sub="${esc(x.sub)}">
+        <div class="pitem-body">
+          <div class="pitem-t">${esc(x.sub || x.topic)}</div>
+          <div class="pitem-s">${esc(x.unit)}${x.sub ? ` › ${esc(x.topic)}` : ""}</div>
+        </div>
+      </div>`).join("") || `<div class="empty">검색 결과 없음</div>`}</div>`);
 }
 
 /* ---------------- 문제 상세 ---------------- */
@@ -1243,6 +1422,71 @@ const ACT = {
     Store.addProblems([p], { replace: true });
     closeSheet(); toast("저장했습니다"); render();
   },
+  /* 일괄 가져오기 */
+  "bulk-open": () => { bulk = newBulk(); unitQuery = ""; route = "bulk"; render(); },
+  "bulk-exit": () => {
+    if (bulk && bulk.step === 2 && bulk.items.length && !confirm("저장하지 않고 나갈까요?")) return;
+    bulk = null; route = "bank"; render();
+  },
+  "bulk-build": () => bulkBuild(),
+  "bulk-pick": d => {
+    const i = Number(d.i);
+    if (bulk.sel.has(i)) bulk.sel.delete(i); else bulk.sel.add(i);
+    render();
+  },
+  "bulk-all": () => {
+    if (bulk.sel.size) bulk.sel.clear();
+    else bulk.items.forEach((_, i) => bulk.sel.add(i));
+    render();
+  },
+  "bulk-assign": () => { unitQuery = ""; unitPicker("bulk-set-unit"); },
+  "bulk-set-unit": d => {
+    bulk.sel.forEach(i => {
+      const it = bulk.items[i];
+      it.unit = d.unit; it.topic = d.topic; it.sub = d.sub; it.auto = false;
+    });
+    toast(`${bulk.sel.size}문항에 지정했습니다`);
+    bulk.sel.clear();
+    closeSheet(); render();
+  },
+  "bulk-photos": () => {
+    const inp = document.createElement("input");
+    inp.type = "file"; inp.accept = "image/*"; inp.multiple = true;
+    inp.onchange = async () => {
+      const files = [...inp.files];
+      if (!files.length) return;
+      const targets = bulk.sel.size ? [...bulk.sel].sort((a, b) => a - b) : bulk.items.map((_, i) => i);
+      toast(`사진 ${files.length}장 처리 중…`);
+      for (let k = 0; k < files.length && k < targets.length; k++) {
+        try { bulk.items[targets[k]].img = await fileToDataURL(files[k]); }
+        catch { /* 개별 실패는 건너뛴다 */ }
+      }
+      toast(`${Math.min(files.length, targets.length)}문항에 사진을 넣었습니다`);
+      render();
+    };
+    inp.click();
+  },
+  "bulk-save": () => {
+    const b = bulk;
+    const missing = b.items.filter(i => !i.unit).length;
+    if (missing && !confirm(`단원이 없는 ${missing}문항이 있습니다. 그대로 저장할까요?`)) return;
+    const stamp = Date.now();
+    const list = b.items.map(it => ({
+      id: `${b.meta.year}-${b.meta.exam}-${b.meta.subject}-${b.meta.track}-${it.no}`.replace(/\s+/g, ""),
+      year: Number(b.meta.year) || undefined, exam: b.meta.exam,
+      org: Curriculum.orgOf(b.meta.exam), grade: b.meta.grade,
+      subject: b.meta.subject, track: b.meta.track,
+      unit: it.unit, topic: it.topic, sub: it.sub,
+      no: it.no, points: Number(it.points) || undefined,
+      type: it.type, answer: it.answer, level: Number(it.level) || undefined,
+      text: it.text || "", img: it.img || "",
+      source: `일괄 입력 ${new Date(stamp).toLocaleDateString("ko-KR")}`
+    }));
+    const r = Store.addProblems(list, { replace: true });
+    bulk = null; route = "bank"; render();
+    toast(`${r.added}문항 추가${r.updated ? `, ${r.updated}문항 갱신` : ""}`);
+  },
+
   "import-text": () => sheet("붙여넣기", `
     <div class="small muted" style="margin-bottom:10px">JSON 배열, 백업 JSON, CSV 모두 가능합니다.</div>
     <textarea id="import-area" style="min-height:220px" placeholder='[{"subject":"통합과학", ...}]'></textarea>
@@ -1298,6 +1542,11 @@ document.addEventListener("change", e => {
     }
   }
   else if (act === "draft-choice") draft.choices[Number(t.dataset.i)] = t.value;
+  else if (act === "bulk-meta") {
+    bulk.meta[t.dataset.key] = t.value;
+    if (t.dataset.key === "subject") bulk.meta.track = Curriculum.tracks(t.value)[0] || "";
+    render();
+  }
 });
 
 document.addEventListener("input", e => {
@@ -1314,6 +1563,18 @@ document.addEventListener("input", e => {
   else if (t.dataset.act === "memo") Store.setMemo(t.dataset.id, t.value);
   else if (t.dataset.act === "draft") draft[t.dataset.key] = t.value;
   else if (t.dataset.act === "draft-choice") draft.choices[Number(t.dataset.i)] = t.value;
+  else if (t.dataset.act === "bulk-key") bulk.keyText = t.value;
+  else if (t.dataset.act === "bulk-body") bulk.bodyText = t.value;
+  else if (t.dataset.act === "unit-search") {
+    unitQuery = t.value;
+    clearTimeout(t._d);
+    t._d = setTimeout(() => {
+      const pos = t.selectionStart;
+      unitPicker("bulk-set-unit");
+      const n = document.querySelector('[data-act="unit-search"]');
+      if (n) { n.focus(); n.setSelectionRange(pos, pos); }
+    }, 200);
+  }
 });
 
 document.addEventListener("keydown", e => {
@@ -1329,7 +1590,8 @@ document.addEventListener("keydown", e => {
 /* ---------------- 렌더 ---------------- */
 const RENDER = {
   home: renderHome, filter: renderFilter, solve: renderSolve,
-  result: renderResult, stats: renderStats, review: renderReview, bank: renderBank
+  result: renderResult, stats: renderStats, review: renderReview, bank: renderBank,
+  bulk: renderBulk
 };
 
 function render() {
@@ -1339,7 +1601,9 @@ function render() {
   v.innerHTML = (RENDER[route] || renderHome)();
   v.scrollTop = top;
   document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("on", b.dataset.go === route));
-  document.getElementById("nav").style.display = route === "solve" ? "none" : "flex";
+  const navOff = route === "solve" || route === "bulk";
+  document.getElementById("nav").style.display = navOff ? "none" : "flex";
+  document.body.setAttribute("data-nav", navOff ? "off" : "on");
   if (route === "solve" && session && !session.answered) startTimer();
 }
 
