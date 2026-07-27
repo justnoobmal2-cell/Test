@@ -53,6 +53,7 @@ function sheet(title, html) {
     </div>${html}</div>`;
   bg.addEventListener("click", e => { if (e.target === bg) closeSheet(); });
   document.body.appendChild(bg);
+  hydrateImages(bg);
 }
 const closeSheet = () => document.querySelectorAll(".sheet-bg").forEach(s => s.remove());
 
@@ -210,6 +211,23 @@ function bar(name, value, right, cls) {
     <div class="bar-head"><span class="bar-name">${esc(name)}</span><span class="bar-val">${esc(right)}</span></div>
     <div class="bar"><div class="bar-fill ${cls || accClass(value)}" style="width:${w}%"></div></div>
   </div>`;
+}
+
+/* 이미지 태그 — IndexedDB 에 있는 이미지는 렌더 후 비동기로 채운다 */
+function imgTag(src, id, cls = "q-img", style = "") {
+  if (!src) return "";
+  const st = style ? ` style="${style}"` : "";
+  return src === IMG_REF
+    ? `<img class="${cls}" data-img="${esc(id)}" alt="문제 이미지"${st}>`
+    : `<img class="${cls}" src="${esc(src)}" alt="문제 이미지"${st}>`;
+}
+
+function hydrateImages(root = document) {
+  root.querySelectorAll("img[data-img]").forEach(el => {
+    if (el.dataset.loaded) return;
+    el.dataset.loaded = "1";
+    ImgStore.get(el.dataset.img).then(v => { if (v) el.src = v; }).catch(() => {});
+  });
 }
 
 function metaLine(p) {
@@ -521,7 +539,7 @@ function renderSolve() {
         !rec.correct && s.chosen != null && s.chosen !== "" ? ` · 내 답 ${esc(isMC ? (CIRCLE[s.chosen - 1] || s.chosen) : s.chosen)}` : ""}
         · ${fmtSec(rec.sec)}</div>
       ${p.solution ? `<div class="hr"></div><div style="white-space:pre-wrap">${esc(p.solution)}</div>` : ""}
-      ${p.solutionImg ? `<img class="q-img" src="${esc(p.solutionImg)}" alt="해설">` : ""}
+      ${p.solutionImg ? imgTag(p.solutionImg, p.id + ":sol") : ""}
     </div>` : "";
 
   /* 하단 답 입력 바 */
@@ -550,7 +568,7 @@ function renderSolve() {
       ${metaLine(p)}
       ${p.text ? `<div class="q-text">${esc(p.text)}</div>` : ""}
       ${p.box ? `<div class="q-box">${esc(p.box)}</div>` : ""}
-      ${p.img ? `<img class="q-img" src="${esc(p.img)}" alt="문제 이미지">` : ""}
+      ${imgTag(p.img, p.id)}
       ${!p.text && !p.img ? `<div class="empty">문제 본문이 등록되어 있지 않습니다.<br>답만 체크하려면 아래에서 고르세요.</div>` : ""}
       ${body}
       ${verdict}
@@ -768,7 +786,8 @@ function renderBank() {
           <button class="btn danger" data-act="reset">전체 초기화</button>
         </div>
         <div class="small muted" style="margin-top:12px;line-height:1.6">
-          데이터는 이 브라우저에만 저장됩니다. 기기를 바꾸기 전에 꼭 내보내세요.
+          데이터는 이 브라우저에만 저장됩니다. 기기를 바꾸기 전에 꼭 내보내세요.<br>
+          문항 이미지 <span id="img-usage">계산 중…</span>
         </div>
       </div>
 
@@ -981,14 +1000,14 @@ function peek(id) {
     <div class="small muted" style="margin-bottom:10px">${esc(path)}</div>
     ${metaLine(p)}
     ${p.text ? `<div class="q-text" style="font-size:15.5px">${esc(p.text)}</div>` : ""}
-    ${p.img ? `<img class="q-img" src="${esc(p.img)}">` : ""}
+    ${imgTag(p.img, p.id)}
     ${isMC && p.choices?.length ? `<div style="margin-top:14px">${p.choices.map((c, i) =>
       `<div style="padding:4px 0;font-size:14px;${Number(p.answer) === i + 1 ? "color:var(--ok);font-weight:700" : ""}">${CIRCLE[i]} ${esc(c)}</div>`).join("")}</div>` : ""}
     <div class="verdict ok" style="margin-top:16px">
       <div class="verdict-h">정답 ${esc(ansTxt)}</div>
       ${p.solution ? `<div style="white-space:pre-wrap">${esc(p.solution)}</div>` : `<div class="muted small">해설 없음</div>`}
     </div>
-    ${p.solutionImg ? `<img class="q-img" src="${esc(p.solutionImg)}">` : ""}
+    ${p.solutionImg ? imgTag(p.solutionImg, p.id + ":sol") : ""}
 
     <div class="hr"></div>
     <div class="small muted">시도 ${atts.length}회${atts.length ? ` · 최근 ${atts[atts.length - 1].correct ? "정답" : "오답"}` : ""}</div>
@@ -1081,7 +1100,7 @@ function renderForm() {
       <button class="btn outline sm" data-act="pick-img" data-key="img">이미지 파일 선택</button>
       ${d.img ? `<button class="btn ghost sm" data-act="draft-clear" data-key="img">이미지 지우기</button>` : ""}
     </div>
-    ${d.img ? `<img class="q-img" src="${esc(d.img)}" style="margin-bottom:14px">` : ""}
+    ${imgTag(d.img, d.id, "q-img", "margin-bottom:14px")}
 
     ${d.type === "객관식" ? `
       <div class="small muted" style="margin-bottom:8px">선택지 (비워두면 ①~⑤ 번호만 표시)</div>
@@ -1161,9 +1180,16 @@ function ingest(text) {
     return toast("형식을 읽지 못했습니다: " + e.message);
   }
   if (!list || !list.length) return toast("불러올 문제가 없습니다.");
-  const r = Store.addProblems(list, { replace: true });
-  toast(`${r.added}개 추가${r.updated ? `, ${r.updated}개 갱신` : ""}`);
-  closeSheet(); render();
+  list.forEach(p => { if (!p.id) p.id = `p-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`; });
+  const heavy = list.filter(p => typeof p.img === "string" && p.img.startsWith("data:")).length;
+  if (heavy) toast(`이미지 ${heavy}장 저장 중…`);
+  ImgStore.absorb(list)
+    .catch(() => 0)
+    .then(() => {
+      const r = Store.addProblems(list, { replace: true });
+      toast(`${r.added}개 추가${r.updated ? `, ${r.updated}개 갱신` : ""}`);
+      closeSheet(); render();
+    });
 }
 
 function pickFile(accept, cb) {
@@ -1390,7 +1416,9 @@ const ACT = {
   "edit-problem": d => openForm(Store.getProblem(d.id)),
   "del-problem": d => {
     if (!confirm("이 문제를 삭제할까요? (풀이 기록은 남습니다)")) return;
-    Store.removeProblem(d.id); closeSheet(); toast("삭제했습니다"); render();
+    Store.removeProblem(d.id);
+    ImgStore.del(d.id).catch(() => {});
+    closeSheet(); toast("삭제했습니다"); render();
   },
   "custom-unit": () => {
     const unit = prompt("대단원", draft.unit || "");
@@ -1419,8 +1447,10 @@ const ACT = {
       if (p.choices.every(c => !c.trim())) delete p.choices;
     } else delete p.choices;
     if (!p.id) p.id = `p-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    Store.addProblems([p], { replace: true });
-    closeSheet(); toast("저장했습니다"); render();
+    ImgStore.absorb([p]).catch(() => 0).then(() => {
+      Store.addProblems([p], { replace: true });
+      closeSheet(); toast("저장했습니다"); render();
+    });
   },
   /* 일괄 가져오기 */
   "bulk-open": () => { bulk = newBulk(); unitQuery = ""; route = "bulk"; render(); },
@@ -1501,14 +1531,37 @@ const ACT = {
     fr.readAsText(f, "utf-8");
   }),
   "format-help": () => formatHelp(),
-  export: () => {
-    download(`기출트레이너-백업-${new Date().toISOString().slice(0, 10)}.json`, Store.exportAll());
-    toast("백업 파일을 저장했습니다");
+  export: () => sheet("백업 내보내기", `
+    <div class="small muted" style="margin-bottom:14px;line-height:1.8">
+      문제·풀이 기록·단원 분류는 항상 들어갑니다.<br>
+      문항 이미지는 용량이 커서 따로 고를 수 있습니다.
+    </div>
+    <div class="btn-row">
+      <button class="btn outline" data-act="do-export">이미지 빼고</button>
+      <button class="btn primary" data-act="do-export" data-img="1">이미지 포함</button>
+    </div>`),
+  "do-export": d => {
+    const withImg = d.img === "1";
+    const day = new Date().toISOString().slice(0, 10);
+    if (!withImg) {
+      download(`기출트레이너-백업-${day}.json`, Store.exportAll());
+      closeSheet(); return toast("백업 파일을 저장했습니다");
+    }
+    toast("이미지를 모으는 중…");
+    const ids = Store.allProblems().filter(p => p.img === IMG_REF).map(p => p.id);
+    ImgStore.dump(ids).then(images => {
+      const data = JSON.parse(Store.exportAll());
+      data.images = images;
+      download(`기출트레이너-백업-이미지포함-${day}.json`, JSON.stringify(data));
+      closeSheet(); toast(`이미지 ${Object.keys(images).length}장 포함해 저장했습니다`);
+    });
   },
   reset: () => {
     if (!confirm("모든 문제와 풀이 기록을 지웁니다. 계속할까요?")) return;
     if (!confirm("정말 초기화할까요? 되돌릴 수 없습니다.")) return;
-    Store.resetAll(); applyTheme(); toast("초기화했습니다"); render();
+    Store.resetAll();
+    ImgStore.clear().catch(() => {});
+    applyTheme(); toast("초기화했습니다"); render();
   }
 };
 
@@ -1605,6 +1658,16 @@ function render() {
   document.getElementById("nav").style.display = navOff ? "none" : "flex";
   document.body.setAttribute("data-nav", navOff ? "off" : "on");
   if (route === "solve" && session && !session.answered) startTimer();
+  hydrateImages(v);
+  if (route === "bank") {
+    const el = document.getElementById("img-usage");
+    if (el) {
+      const n = Store.allProblems().filter(p => p.img === IMG_REF).length;
+      ImgStore.bytes()
+        .then(b => { el.textContent = `${n}장 · ${(b / 1048576).toFixed(1)}MB (IndexedDB)`; })
+        .catch(() => { el.textContent = "사용 안 함"; });
+    }
+  }
 }
 
 Store.load();

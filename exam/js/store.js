@@ -230,6 +230,8 @@ const Store = (() => {
     if (data.sessions) db.sessions = data.sessions.concat(db.sessions).slice(0, 50);
     if (data.settings) Object.assign(db.settings, data.settings);
     save();
+    // 이미지는 IndexedDB 로 따로 복원한다
+    if (data.images && typeof ImgStore !== "undefined") ImgStore.restore(data.images).catch(() => {});
     return { ok: true };
   }
 
