@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="기출 트레이너">
+<title>단원별 기출 트레이너</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f1115'/%3E%3Cg stroke='%234c8dff' stroke-width='3' stroke-linecap='round' fill='none'%3E%3Cpath d='M8 24V14'/%3E%3Cpath d='M16 24V8'/%3E%3Cpath d='M24 24v-6'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <div id="view"></div>
+  <nav class="nav" id="nav">
+    <button class="nav-btn" data-go="home">
+      <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+      <span>홈</span>
+    </button>
+    <button class="nav-btn" data-go="filter">
+      <svg viewBox="0 0 24 24"><path d="M3 5h18"/><path d="M6 12h12"/><path d="M10 19h4"/></svg>
+      <span>문제 풀기</span>
+    </button>
+    <button class="nav-btn" data-go="stats">
+      <svg viewBox="0 0 24 24"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
+      <span>분석</span>
+    </button>
+    <button class="nav-btn" data-go="review">
+      <svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M9 8h7"/><path d="M9 12h5"/></svg>
+      <span>오답노트</span>
+    </button>
+    <button class="nav-btn" data-go="bank">
+      <svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h10"/><circle cx="19" cy="17" r="2.5"/></svg>
+      <span>문제 관리</span>
+    </button>
+  </nav>
+</div>
+
+<script src="js/curriculum.js"></script>
+<script src="js/data.js"></script>
+<script src="js/autotag.js"></script>
+<script src="js/images.js"></script>
+<script src="js/store.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
