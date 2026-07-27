@@ -1,5 +1,9 @@
 /* 단원별 기출 트레이너 - 화면/로직 */
 
+/* 배포된 파일이 최신인지 확인할 수 있게 버전을 노출한다.
+   기능이 바뀔 때마다 올린다. */
+const APP_VERSION = "2026.07.27-4";
+
 /* ---------------- 유틸 ---------------- */
 const view = () => document.getElementById("view");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -801,6 +805,17 @@ function renderBank() {
           <span style="font-size:14px">어두운 화면</span>
           <input type="checkbox" data-act="toggle-theme" style="width:auto" ${Store.db.settings.theme === "dark" ? "checked" : ""}>
         </label>
+      </div>
+
+      <div class="card">
+        <div class="card-title">앱 정보</div>
+        <div class="small muted" style="line-height:1.9">
+          버전 <b>${APP_VERSION}</b><br>
+          이미지 저장소 <b>${typeof ImgStore !== "undefined" && ImgStore.supported() ? "IndexedDB 사용 가능" : "사용 불가 — 구버전이거나 브라우저 제한"}</b>
+        </div>
+        <div class="small muted" style="margin-top:10px;line-height:1.6">
+          문제가 안 보이면 이 버전을 확인하세요. 낮으면 새로고침(캐시 삭제)이 필요합니다.
+        </div>
       </div>
 
       <div class="sec-title">문제 목록</div>
