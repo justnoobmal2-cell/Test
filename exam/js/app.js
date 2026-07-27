@@ -794,7 +794,7 @@ function renderBank() {
       <div class="card">
         <div class="card-title">설정</div>
         <label class="spread" style="padding:4px 0">
-          <span style="font-size:14px">샘플 문제 표시</span>
+          <span style="font-size:14px">${typeof BUNDLED_LABEL !== "undefined" ? BUNDLED_LABEL : "샘플 문제 표시"}</span>
           <input type="checkbox" data-act="toggle-seed" style="width:auto" ${Store.db.settings.seedEnabled ? "checked" : ""}>
         </label>
         <label class="spread" style="padding:4px 0">
