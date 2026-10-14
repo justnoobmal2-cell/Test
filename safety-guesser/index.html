@@ -1,0 +1,1185 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>안전게서</title>
+<meta name="description" content="비수도권 우리 동네 소방서·경찰서 위치를 맞히고, 새 시설이 필요한 곳에 투표하고, 결과를 통계로 모으는 웹앱">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* 레이아웃: 넓은 화면은 왼쪽 패널 + 오른쪽 지도, 휴대폰은 위 지도 + 아래 패널 */
+:root {
+  --paper: #f3f5f8;
+  --surface: #ffffff;
+  --line: #d9dee7;
+  --ink: #141a24;
+  --muted: #5b6577;
+  --fire: #d7262e;
+  --fire-soft: #fde7e7;
+  --police: #1d4fd8;
+  --police-soft: #e4ebfd;
+  --signal: #f6b400;
+  --signal-ink: #3a2a00;
+  --ok: #148a4b;
+  --font-display: "Black Han Sans", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+  --radius: 10px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f141c; --surface: #171e29; --line: #2a3443; --ink: #eef2f8; --muted: #9aa6b8;
+    --fire: #ff5a5f; --fire-soft: #3a1a1d; --police: #6f9bff; --police-soft: #182544;
+    --signal: #ffc83d; --signal-ink: #2b1f00; --ok: #3ccf82; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f141c; --surface: #171e29; --line: #2a3443; --ink: #eef2f8; --muted: #9aa6b8;
+  --fire: #ff5a5f; --fire-soft: #3a1a1d; --police: #6f9bff; --police-soft: #182544;
+  --signal: #ffc83d; --signal-ink: #2b1f00; --ok: #3ccf82; color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; overflow: hidden; }
+body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+[hidden] { display: none !important; }
+button, select, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--signal); outline-offset: 2px; }
+
+#app { height: 100%; display: flex; flex-direction: column; }
+
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.logo { font-family: var(--font-display); font-size: 26px; line-height: 1; letter-spacing: .5px; }
+.logo .f { color: var(--fire); }
+.logo .p { color: var(--police); }
+.tagline { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.tabs { display: flex; gap: 4px; background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+.tabs button { border: 0; background: transparent; padding: 6px 16px; border-radius: 999px; font-weight: 700; color: var(--muted); }
+.tabs button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+
+.layout { flex: 1; min-height: 0; display: grid; grid-template-columns: 400px 1fr; }
+.panel { overflow-y: auto; border-right: 1px solid var(--line); background: var(--surface); padding: 16px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+#map { min-height: 0; background: var(--paper); }
+
+@media (max-width: 760px) {
+  .layout { grid-template-columns: 1fr; grid-template-rows: 52% 48%; }
+  .panel { order: 2; border-right: 0; border-top: 1px solid var(--line); }
+  #map { order: 1; }
+  .tagline { display: none; }
+}
+
+.region-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.region-bar label { font-weight: 700; font-size: 13px; color: var(--muted); }
+.region-bar select { flex: 1; min-width: 150px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.status { font-size: 13px; color: var(--muted); margin: -8px 0 0; }
+.status.err { color: var(--fire); }
+
+h2 { font-family: var(--font-display); font-weight: 400; font-size: 24px; line-height: 1.25; margin: 0; text-wrap: balance; }
+h3 { font-size: 15px; margin: 0 0 8px; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+.btn { border: 0; border-radius: var(--radius); padding: 12px 16px; font-weight: 700; background: var(--ink); color: var(--paper); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn.signal { background: var(--signal); color: var(--signal-ink); }
+.btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+.btn.wide { width: 100%; }
+.btn.small { padding: 7px 12px; font-size: 13px; }
+
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: .3px; }
+.chip.fire { background: var(--fire-soft); color: var(--fire); }
+.chip.police { background: var(--police-soft); color: var(--police); }
+.chip.neutral { background: var(--paper); color: var(--muted); border: 1px solid var(--line); }
+
+.question { border: 2px solid var(--ink); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.question.fire { border-color: var(--fire); }
+.question.police { border-color: var(--police); }
+.question .name { font-family: var(--font-display); font-size: 28px; line-height: 1.2; overflow-wrap: anywhere; }
+
+.scoreline { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.big { font-family: var(--font-display); font-size: 40px; line-height: 1; font-variant-numeric: tabular-nums; }
+.plus { background: var(--signal); color: var(--signal-ink); border-radius: 6px; padding: 2px 8px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.fact { background: var(--paper); border-radius: var(--radius); padding: 12px; font-size: 14px; }
+.fact strong { font-variant-numeric: tabular-nums; }
+
+.progress { display: flex; gap: 4px; }
+.progress span { flex: 1; height: 6px; border-radius: 3px; background: var(--line); }
+.progress span.done { background: var(--ink); }
+.progress span.now { background: var(--signal); }
+
+.list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.list li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.list li > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.list .num { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 700; }
+.list button.linklike { border: 0; background: none; padding: 0; text-align: left; color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+
+.seg { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { border: 2px solid var(--line); border-radius: var(--radius); padding: 10px; text-align: center; font-weight: 700; cursor: pointer; }
+.seg input:checked + label.fire { border-color: var(--fire); background: var(--fire-soft); color: var(--fire); }
+.seg input:checked + label.police { border-color: var(--police); background: var(--police-soft); color: var(--police); }
+.seg input:focus-visible + label { outline: 3px solid var(--signal); outline-offset: 2px; }
+
+.reasons { position: relative; display: flex; flex-wrap: wrap; gap: 6px; }
+.reasons input { position: absolute; opacity: 0; pointer-events: none; }
+.reasons label { border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+.reasons input:checked + label { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.reasons input:focus-visible + label { outline: 3px solid var(--signal); outline-offset: 2px; }
+textarea, input[type="text"] { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--surface); resize: vertical; }
+
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tile { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
+.tile .k { font-size: 12px; color: var(--muted); }
+.tile .v { font-family: var(--font-display); font-size: 26px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.tile .v small { font-family: var(--font-body); font-size: 13px; color: var(--muted); }
+
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 7px 6px; border-bottom: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; }
+th { font-size: 12px; color: var(--muted); font-weight: 500; }
+td.fire { color: var(--fire); font-weight: 700; }
+td.police { color: var(--police); font-weight: 700; }
+
+.bars { display: flex; flex-direction: column; gap: 6px; }
+.bar { display: grid; grid-template-columns: 1fr 40px; gap: 8px; align-items: center; font-size: 13px; }
+.bar .track { position: relative; background: var(--paper); border-radius: 4px; overflow: hidden; }
+.bar .fill { position: absolute; inset: 0 auto 0 0; background: var(--signal); }
+.bar .lbl { position: relative; padding: 3px 8px; }
+.bar .n { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+
+details { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
+details summary { cursor: pointer; font-weight: 700; }
+details[open] summary { margin-bottom: 10px; }
+.note { font-size: 12px; color: var(--muted); }
+section.block { display: flex; flex-direction: column; gap: 10px; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 0; width: 100%; }
+
+.confirm { border: 2px solid var(--fire); border-radius: var(--radius); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+
+#toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 999px; font-weight: 700; font-size: 14px; z-index: 2000; max-width: calc(100% - 32px); text-align: center; }
+
+/* 지도 핀 */
+.pin { width: 26px; height: 26px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35); }
+.pin.guess { background: var(--signal); }
+.pin.fire { background: var(--fire); }
+.pin.police { background: var(--police); }
+.pin.vote { background: var(--ink); }
+.leaflet-container { font-family: var(--font-body); }
+.leaflet-popup-content { margin: 10px 12px; font-size: 13px; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo"><span class="f">안전</span><span class="p">게서</span></span>
+      <span class="tagline">우리 동네 119·112는 어디에 있을까?</span>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="화면 선택">
+      <button type="button" role="tab" id="tabbtn-play" data-tab="play" aria-selected="true">맞히기</button>
+      <button type="button" role="tab" id="tabbtn-vote" data-tab="vote" aria-selected="false">투표</button>
+      <button type="button" role="tab" id="tabbtn-stats" data-tab="stats" aria-selected="false">통계</button>
+    </nav>
+  </header>
+
+  <main class="layout">
+    <section class="panel" aria-live="polite">
+      <div class="region-bar">
+        <label for="provinceSel">지역</label>
+        <select id="provinceSel"></select>
+        <button type="button" class="btn small ghost" id="reloadBtn">다시 불러오기</button>
+      </div>
+      <p class="status" id="loadStatus"></p>
+
+      <div id="tab-play" role="tabpanel" aria-labelledby="tabbtn-play" class="stack"></div>
+      <div id="tab-vote" role="tabpanel" aria-labelledby="tabbtn-vote" class="stack" hidden></div>
+      <div id="tab-stats" role="tabpanel" aria-labelledby="tabbtn-stats" class="stack" hidden></div>
+    </section>
+    <div id="map" aria-label="지도"></div>
+  </main>
+</div>
+<div id="toast" role="status" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+"use strict";
+
+/* ───────────── 설정 ───────────── */
+
+// 비수도권 시도 목록. re는 OpenStreetMap 행정구역 이름(개명 전 이름 포함)과 맞추는 정규식이다.
+const PROVINCES = [
+  { id: "gangwon",   name: "강원특별자치도", re: "^(강원특별자치도|강원도)$",   center: [37.75, 128.30], zoom: 8 },
+  { id: "chungbuk",  name: "충청북도",       re: "^충청북도$",                 center: [36.75, 127.75], zoom: 8 },
+  { id: "chungnam",  name: "충청남도",       re: "^충청남도$",                 center: [36.50, 126.85], zoom: 8 },
+  { id: "jeonbuk",   name: "전북특별자치도", re: "^(전북특별자치도|전라북도)$", center: [35.72, 127.15], zoom: 8 },
+  { id: "jeonnam",   name: "전라남도",       re: "^전라남도$",                 center: [34.85, 126.90], zoom: 8 },
+  { id: "gyeongbuk", name: "경상북도",       re: "^경상북도$",                 center: [36.35, 128.75], zoom: 8 },
+  { id: "gyeongnam", name: "경상남도",       re: "^경상남도$",                 center: [35.30, 128.25], zoom: 8 },
+  { id: "jeju",      name: "제주특별자치도", re: "^제주특별자치도$",           center: [33.38, 126.55], zoom: 10 },
+  { id: "busan",     name: "부산광역시",     re: "^부산광역시$",               center: [35.16, 129.06], zoom: 11 },
+  { id: "daegu",     name: "대구광역시",     re: "^대구광역시$",               center: [35.87, 128.60], zoom: 11 },
+  { id: "gwangju",   name: "광주광역시",     re: "^광주광역시$",               center: [35.16, 126.85], zoom: 11 },
+  { id: "daejeon",   name: "대전광역시",     re: "^대전광역시$",               center: [36.35, 127.38], zoom: 11 },
+  { id: "ulsan",     name: "울산광역시",     re: "^울산광역시$",               center: [35.55, 129.30], zoom: 10 },
+  { id: "sejong",    name: "세종특별자치시", re: "^세종특별자치시$",           center: [36.56, 127.26], zoom: 11 },
+];
+
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+];
+
+// 도착 시간 추정: 직선거리 × 도로 우회 계수 ÷ 평균 출동 속도 (가정값)
+const DETOUR = 1.3;
+const SPEED_KMH = 40;
+const ROUNDS = 5;
+const GUESS_MAX_ZOOM = 14; // 지도 아이콘으로 정답이 보이지 않도록 문제 푸는 동안 확대를 제한한다
+
+const KIND_LABEL = { fire: "소방", police: "경찰" };
+const KIND_FULL = { fire: "소방서·119안전센터", police: "경찰서·지구대·파출소" };
+
+const REASONS = [
+  ["far", "가까운 시설이 너무 멀어요"],
+  ["people", "사람이 많이 살아요"],
+  ["vulnerable", "어르신·어린이가 많아요"],
+  ["danger", "사고·범죄가 자주 나요"],
+  ["tourist", "관광객·외지인이 많아요"],
+];
+const REASON_LABEL = Object.fromEntries(REASONS);
+
+const STORE_KEY = "anjeon-guesser-v1";
+const PREF_KEY = "anjeon-guesser-pref";
+
+/* ───────────── 유틸 ───────────── */
+
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const fmtKm = (km) => (km < 1 ? `${Math.round(km * 1000)}m` : `${km.toFixed(km < 10 ? 1 : 0)}km`);
+const estMin = (km) => Math.max(1, Math.round((km * DETOUR / SPEED_KMH) * 60));
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371, toRad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * toRad, dLng = (lng2 - lng1) * toRad;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+let toastTimer;
+function toast(msg) {
+  const el = $("#toast");
+  el.textContent = msg; el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, 2600);
+}
+
+function readJSON(key, fallback) {
+  try { const v = JSON.parse(localStorage.getItem(key)); return v ?? fallback; } catch { return fallback; }
+}
+function writeJSON(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
+}
+
+/* ───────────── 시설 분류 ───────────── */
+
+function subtypeOf(kind, name) {
+  const n = name || "";
+  if (kind === "fire") {
+    if (n.includes("소방서")) return "소방서";
+    if (n.includes("안전센터")) return "119안전센터";
+    if (n.includes("지역대")) return "119지역대";
+    if (n.includes("구조대")) return "119구조대";
+    return "소방시설";
+  }
+  if (n.includes("치안센터")) return "치안센터";
+  if (n.includes("지구대")) return "지구대";
+  if (n.includes("파출소")) return "파출소";
+  if (n.includes("경찰서")) return "경찰서";
+  return "경찰시설";
+}
+
+// 치안센터는 상시 출동 거점이 아닌 경우가 많아 거리 분석에서는 뺀다(게임 문제에는 포함).
+const isResponseBase = (f) => !(f.kind === "police" && f.sub === "치안센터");
+
+function kindFromText(text) {
+  const t = text || "";
+  if (/소방|119|안전센터|구조대|지역대/.test(t)) return "fire";
+  if (/경찰|지구대|파출소|치안센터|112/.test(t)) return "police";
+  return null;
+}
+
+/* ───────────── 데이터 불러오기 (OpenStreetMap Overpass) ───────────── */
+
+async function overpass(query) {
+  let lastErr;
+  for (const url of OVERPASS_ENDPOINTS) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 120000);
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        body: "data=" + encodeURIComponent(query),
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+        signal: ctrl.signal,
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return await res.json();
+    } catch (e) {
+      lastErr = e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  throw lastErr || new Error("overpass failed");
+}
+
+function parseElements(elements, inRegion) {
+  const facilities = [], places = [];
+  for (const el of elements || []) {
+    const tags = el.tags || {};
+    const lat = el.lat ?? el.center?.lat;
+    const lng = el.lon ?? el.center?.lon;
+    if (typeof lat !== "number" || typeof lng !== "number") continue;
+    const name = tags.name || tags["name:ko"] || "";
+    if (tags.amenity === "fire_station" || tags.amenity === "police") {
+      const kind = tags.amenity === "fire_station" ? "fire" : "police";
+      facilities.push({ id: `osm-${el.type}-${el.id}`, kind, name, sub: subtypeOf(kind, name), lat, lng, inRegion, src: "OSM" });
+    } else if (tags.place && name) {
+      places.push({ name, lat, lng, place: tags.place });
+    }
+  }
+  return { facilities, places };
+}
+
+function boundsOf(points) {
+  let s = 90, w = 180, n = -90, e = -180;
+  for (const p of points) { s = Math.min(s, p.lat); n = Math.max(n, p.lat); w = Math.min(w, p.lng); e = Math.max(e, p.lng); }
+  return { s, w, n, e };
+}
+
+const memCache = new Map();
+
+async function loadProvince(prov, { force = false } = {}) {
+  const cacheKey = "anjeon-cache-" + prov.id;
+  if (!force) {
+    if (memCache.has(prov.id)) return memCache.get(prov.id);
+    try {
+      const raw = sessionStorage.getItem(cacheKey);
+      if (raw) { const d = JSON.parse(raw); memCache.set(prov.id, d); return d; }
+    } catch { /* 저장소를 쓸 수 없으면 새로 불러온다 */ }
+  }
+  const q1 = `[out:json][timeout:120];
+area["boundary"="administrative"]["admin_level"="4"]["name"~"${prov.re}"]->.p;
+nwr["amenity"~"^(fire_station|police)$"](area.p);
+out center;
+node["place"~"^(town|village|hamlet|suburb|quarter|neighbourhood)$"](area.p);
+out;`;
+  const r1 = await overpass(q1);
+  const inside = parseElements(r1.elements, true);
+  if (!inside.facilities.length && !inside.places.length) throw new Error("empty");
+
+  // 도 경계 근처 마을은 이웃 시도의 시설이 더 가까울 수 있으므로, 경계 바깥 시설도 거리 계산용으로 받는다.
+  let neighbours = [];
+  let neighbourOk = true;
+  const b = boundsOf([...inside.facilities, ...inside.places]);
+  const pad = 0.15;
+  const q2 = `[out:json][timeout:60];
+nwr["amenity"~"^(fire_station|police)$"](${(b.s - pad).toFixed(4)},${(b.w - pad).toFixed(4)},${(b.n + pad).toFixed(4)},${(b.e + pad).toFixed(4)});
+out center;`;
+  try {
+    const r2 = await overpass(q2);
+    const seen = new Set(inside.facilities.map((f) => f.id));
+    neighbours = parseElements(r2.elements, false).facilities.filter((f) => !seen.has(f.id));
+  } catch { neighbourOk = false; }
+
+  const data = {
+    provinceId: prov.id,
+    facilities: [...inside.facilities, ...neighbours],
+    places: inside.places,
+    neighbourOk,
+    loadedAt: Date.now(),
+  };
+  memCache.set(prov.id, data);
+  try { sessionStorage.setItem(cacheKey, JSON.stringify(data)); } catch { /* 용량 초과 시 메모리 캐시만 쓴다 */ }
+  return data;
+}
+
+async function lookupDistrict(lat, lng) {
+  const q = `[out:json][timeout:25];
+is_in(${lat.toFixed(6)},${lng.toFixed(6)})->.a;
+area.a["boundary"="administrative"]["admin_level"="6"];
+out tags;`;
+  try {
+    const r = await overpass(q);
+    const el = (r.elements || [])[0];
+    return el?.tags?.name || "";
+  } catch { return ""; }
+}
+
+/* ───────────── 기록 저장 ───────────── */
+
+let store = sanitizeStore(readJSON(STORE_KEY, null)) || { votes: [], games: [] };
+function saveStore() {
+  if (!writeJSON(STORE_KEY, store)) toast("이 브라우저에는 기록이 저장되지 않아요. 통계 탭에서 내보내기로 보관하세요.");
+}
+
+const num = (v) => typeof v === "number" && Number.isFinite(v);
+const str = (v, max) => (typeof v === "string" ? v.slice(0, max) : "");
+
+function sanitizeVote(v) {
+  if (!v || typeof v !== "object") return null;
+  if (!num(v.lat) || !num(v.lng) || v.lat < 32 || v.lat > 39.5 || v.lng < 123 || v.lng > 132.5) return null;
+  if (v.kind !== "fire" && v.kind !== "police") return null;
+  return {
+    id: str(v.id, 40) || uid(),
+    ts: num(v.ts) ? v.ts : Date.now(),
+    provinceId: PROVINCES.some((p) => p.id === v.provinceId) ? v.provinceId : "",
+    district: str(v.district, 30),
+    kind: v.kind,
+    lat: v.lat, lng: v.lng,
+    nearestKm: num(v.nearestKm) ? v.nearestKm : null,
+    reasons: Array.isArray(v.reasons) ? v.reasons.filter((r) => r in REASON_LABEL) : [],
+    memo: str(v.memo, 100),
+  };
+}
+function sanitizeGame(g) {
+  if (!g || typeof g !== "object" || !Array.isArray(g.rounds)) return null;
+  const rounds = g.rounds
+    .filter((r) => r && (r.kind === "fire" || r.kind === "police") && num(r.errKm))
+    .map((r) => ({ kind: r.kind, name: str(r.name, 60), errKm: r.errKm }));
+  if (!rounds.length) return null;
+  return {
+    id: str(g.id, 40) || uid(),
+    ts: num(g.ts) ? g.ts : Date.now(),
+    provinceId: PROVINCES.some((p) => p.id === g.provinceId) ? g.provinceId : "",
+    score: num(g.score) ? g.score : 0,
+    rounds,
+  };
+}
+function sanitizeStore(s) {
+  if (!s || typeof s !== "object") return null;
+  return {
+    votes: (Array.isArray(s.votes) ? s.votes : []).map(sanitizeVote).filter(Boolean),
+    games: (Array.isArray(s.games) ? s.games : []).map(sanitizeGame).filter(Boolean),
+  };
+}
+
+/* ───────────── 상태 ───────────── */
+
+const pref = readJSON(PREF_KEY, {}) || {};
+let province = PROVINCES.find((p) => p.id === pref.provinceId) || PROVINCES[0];
+let data = null;       // 현재 시도의 시설·마을 데이터
+let loadError = "";
+let loading = false;
+let tab = "play";
+let game = null;       // 진행 중인 게임
+let voteDraft = { kind: "fire", lat: null, lng: null, district: "", districtLoading: false, reasons: new Set(), memo: "" };
+let blindKind = "fire";
+let confirmReset = false;
+
+/* ───────────── 지도 ───────────── */
+
+const map = L.map("map", { zoomControl: true, preferCanvas: true, worldCopyJump: false }).setView([36.3, 127.9], 7);
+L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+  subdomains: "abcd",
+  maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> 기여자 &copy; <a href="https://carto.com/attributions">CARTO</a>',
+}).addTo(map);
+
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const pinIcon = (cls) => L.divIcon({ className: "", html: `<div class="pin ${cls}"></div>`, iconSize: [26, 26], iconAnchor: [13, 30], popupAnchor: [0, -28] });
+
+const layers = {
+  facilities: L.layerGroup(),
+  game: L.layerGroup(),
+  votes: L.layerGroup(),
+  draft: L.layerGroup(),
+  blind: L.layerGroup(),
+};
+
+function drawFacilities() {
+  layers.facilities.clearLayers();
+  if (!data) return;
+  for (const f of data.facilities) {
+    const color = f.kind === "fire" ? css("--fire") : css("--police");
+    L.circleMarker([f.lat, f.lng], {
+      radius: f.sub === "치안센터" ? 4 : 6,
+      color: "#ffffff", weight: 1.5,
+      fillColor: color, fillOpacity: f.inRegion ? 0.95 : 0.45,
+      bubblingMouseEvents: false,
+    }).bindPopup(`<strong>${esc(f.name || "이름 없음")}</strong><br>${esc(f.sub)}${f.inRegion ? "" : " · 이웃 지역"}`).addTo(layers.facilities);
+  }
+}
+
+function drawVotes() {
+  layers.votes.clearLayers();
+  for (const v of store.votes) {
+    const color = v.kind === "fire" ? css("--fire") : css("--police");
+    L.circle([v.lat, v.lng], { radius: 900, stroke: false, fillColor: color, fillOpacity: 0.18, interactive: false }).addTo(layers.votes);
+    L.circleMarker([v.lat, v.lng], { radius: 4, color, weight: 2, fillColor: "#ffffff", fillOpacity: 1, bubblingMouseEvents: false })
+      .bindPopup(`<strong>${KIND_LABEL[v.kind]} 시설 투표</strong><br>${esc(v.district || "시군구 미확인")}${v.memo ? "<br>“" + esc(v.memo) + "”" : ""}`)
+      .addTo(layers.votes);
+  }
+}
+
+function setLayers(names) {
+  for (const [key, layer] of Object.entries(layers)) {
+    const want = names.includes(key);
+    if (want && !map.hasLayer(layer)) layer.addTo(map);
+    if (!want && map.hasLayer(layer)) map.removeLayer(layer);
+  }
+}
+
+function syncMap() {
+  if (tab === "play") {
+    if (game && game.phase === "guess") { setLayers(["game"]); map.setMaxZoom(GUESS_MAX_ZOOM); }
+    else if (game) { setLayers(["game"]); map.setMaxZoom(18); }
+    else { setLayers(["facilities"]); map.setMaxZoom(18); }
+  } else if (tab === "vote") {
+    setLayers(["facilities", "votes", "draft"]); map.setMaxZoom(18);
+  } else {
+    setLayers(["facilities", "votes", "blind"]); map.setMaxZoom(18);
+  }
+}
+
+map.on("click", (e) => {
+  if (tab === "play" && game && game.phase === "guess") {
+    const r = game.rounds[game.idx];
+    r.guess = { lat: e.latlng.lat, lng: e.latlng.lng };
+    drawGameRound();
+    renderPlay();
+  } else if (tab === "vote") {
+    setVotePoint(e.latlng.lat, e.latlng.lng);
+  }
+});
+map.on("moveend", () => { if (tab === "play" && !game) renderPlay(); });
+
+/* ───────────── 공통: 가까운 시설 ───────────── */
+
+function nearestFacility(lat, lng, kind) {
+  if (!data) return null;
+  let best = null, bestKm = Infinity;
+  for (const f of data.facilities) {
+    if (f.kind !== kind || !isResponseBase(f)) continue;
+    const d = haversineKm(lat, lng, f.lat, f.lng);
+    if (d < bestKm) { bestKm = d; best = f; }
+  }
+  return best ? { facility: best, km: bestKm } : null;
+}
+
+/* ───────────── 맞히기 게임 ───────────── */
+
+function facilitiesInView() {
+  if (!data) return [];
+  const b = map.getBounds();
+  return data.facilities.filter((f) => f.name && b.contains([f.lat, f.lng]));
+}
+
+function startGame() {
+  if (map.getZoom() > GUESS_MAX_ZOOM) map.setZoom(GUESS_MAX_ZOOM, { animate: false });
+  const pool = facilitiesInView();
+  const fire = shuffle(pool.filter((f) => f.kind === "fire"));
+  const police = shuffle(pool.filter((f) => f.kind === "police"));
+  const picked = [];
+  const usedNames = new Set();
+  let turn = Math.random() < 0.5 ? "fire" : "police";
+  while (picked.length < ROUNDS && (fire.length || police.length)) {
+    const src = (turn === "fire" ? fire : police).length ? (turn === "fire" ? fire : police) : (turn === "fire" ? police : fire);
+    const f = src.shift();
+    if (!usedNames.has(f.name)) { usedNames.add(f.name); picked.push(f); }
+    turn = turn === "fire" ? "police" : "fire";
+  }
+  if (!picked.length) { toast("지금 화면 안에 이름이 있는 시설이 없어요. 지도를 넓혀 보세요."); return; }
+  const b = map.getBounds();
+  game = {
+    provinceId: province.id,
+    diagKm: Math.max(1, haversineKm(b.getSouth(), b.getWest(), b.getNorth(), b.getEast())),
+    view: { center: map.getCenter(), zoom: map.getZoom() },
+    rounds: picked.map((f) => ({ fac: f, guess: null, errKm: null, score: null })),
+    idx: 0,
+    phase: "guess",
+  };
+  layers.game.clearLayers();
+  syncMap();
+  renderPlay();
+}
+
+function roundScore(errKm, diagKm) {
+  return Math.round(5000 * Math.exp(-10 * errKm / diagKm));
+}
+
+function drawGameRound() {
+  layers.game.clearLayers();
+  const r = game.rounds[game.idx];
+  if (r.guess) L.marker([r.guess.lat, r.guess.lng], { icon: pinIcon("guess"), interactive: false }).addTo(layers.game);
+  if (game.phase === "reveal" && r.guess) {
+    L.marker([r.fac.lat, r.fac.lng], { icon: pinIcon(r.fac.kind), interactive: false }).addTo(layers.game);
+    L.polyline([[r.guess.lat, r.guess.lng], [r.fac.lat, r.fac.lng]], { color: css("--ink"), weight: 2, dashArray: "6 6", interactive: false }).addTo(layers.game);
+  }
+}
+
+function revealRound() {
+  const r = game.rounds[game.idx];
+  if (!r.guess) return;
+  r.errKm = haversineKm(r.guess.lat, r.guess.lng, r.fac.lat, r.fac.lng);
+  r.score = roundScore(r.errKm, game.diagKm);
+  game.phase = "reveal";
+  syncMap();
+  drawGameRound();
+  map.fitBounds(L.latLngBounds([[r.guess.lat, r.guess.lng], [r.fac.lat, r.fac.lng]]).pad(0.6), { maxZoom: 15 });
+  renderPlay();
+}
+
+function nextRound() {
+  if (game.idx < game.rounds.length - 1) {
+    game.idx += 1;
+    game.phase = "guess";
+    syncMap();
+    map.setView(game.view.center, game.view.zoom);
+    drawGameRound();
+  } else {
+    game.phase = "done";
+    const total = game.rounds.reduce((s, r) => s + r.score, 0);
+    store.games.push({
+      id: uid(), ts: Date.now(), provinceId: game.provinceId, score: total,
+      rounds: game.rounds.map((r) => ({ kind: r.fac.kind, name: r.fac.name, errKm: Math.round(r.errKm * 1000) / 1000 })),
+    });
+    saveStore();
+    layers.game.clearLayers();
+    game.rounds.forEach((r, i) => {
+      L.marker([r.fac.lat, r.fac.lng], { icon: pinIcon(r.fac.kind) }).bindPopup(`${i + 1}. ${esc(r.fac.name)}<br>오차 ${fmtKm(r.errKm)}`).addTo(layers.game);
+      L.marker([r.guess.lat, r.guess.lng], { icon: pinIcon("guess"), interactive: false }).addTo(layers.game);
+      L.polyline([[r.guess.lat, r.guess.lng], [r.fac.lat, r.fac.lng]], { color: css("--ink"), weight: 1.5, dashArray: "4 6", interactive: false }).addTo(layers.game);
+    });
+    const pts = game.rounds.flatMap((r) => [[r.fac.lat, r.fac.lng], [r.guess.lat, r.guess.lng]]);
+    map.fitBounds(L.latLngBounds(pts).pad(0.2), { maxZoom: 14 });
+    syncMap();
+  }
+  renderPlay();
+}
+
+function quitGame() {
+  game = null;
+  layers.game.clearLayers();
+  syncMap();
+  renderPlay();
+}
+
+function progressBar() {
+  return `<div class="progress" aria-hidden="true">${game.rounds.map((_, i) =>
+    `<span class="${i < game.idx || game.phase === "done" ? "done" : i === game.idx ? "now" : ""}"></span>`).join("")}</div>`;
+}
+
+function renderPlay() {
+  const el = $("#tab-play");
+  if (!data) {
+    el.innerHTML = `<h2>우리 동네 119·112,<br>어디 있는지 알고 있나요?</h2>
+      <p class="muted">${loading ? "지역의 소방서·경찰서 위치를 불러오고 있어요. 시도 전체를 받느라 10~30초 정도 걸릴 수 있어요." : "위에서 지역을 고르면 시작할 수 있어요."}</p>`;
+    return;
+  }
+
+  if (!game) {
+    const pool = facilitiesInView();
+    const nf = pool.filter((f) => f.kind === "fire").length;
+    const np = pool.filter((f) => f.kind === "police").length;
+    el.innerHTML = `
+      <h2>우리 동네 119·112,<br>어디 있는지 알고 있나요?</h2>
+      <p>지도를 움직여 <strong>우리 동네가 화면에 꽉 차게</strong> 맞춘 다음 시작하세요. 화면 안에 있는 소방서와 경찰서 중에서 ${ROUNDS}문제가 나와요.</p>
+      <div class="row">
+        <span class="chip fire">소방 ${nf}곳</span>
+        <span class="chip police">경찰 ${np}곳</span>
+        <span class="chip neutral">지금 화면 안</span>
+      </div>
+      <button type="button" class="btn signal wide" id="startBtn" ${nf + np ? "" : "disabled"}>이 화면에서 시작하기</button>
+      <p class="note">점수는 실제 위치와 찍은 곳 사이의 거리로 매겨요. 문제를 푸는 동안에는 지도 확대가 제한돼요.</p>`;
+    $("#startBtn").onclick = startGame;
+    return;
+  }
+
+  const r = game.rounds[game.idx];
+  if (game.phase === "guess") {
+    el.innerHTML = `
+      ${progressBar()}
+      <div class="question ${r.fac.kind}">
+        <div class="row"><span class="chip ${r.fac.kind}">${KIND_LABEL[r.fac.kind]}</span><span class="muted small">문제 ${game.idx + 1} / ${game.rounds.length}</span></div>
+        <div class="name">${esc(r.fac.name)}</div>
+        <p class="muted small">이 시설은 어디에 있을까요? 지도를 눌러 위치를 찍으세요.</p>
+      </div>
+      <button type="button" class="btn signal wide" id="checkBtn" ${r.guess ? "" : "disabled"}>${r.guess ? "정답 확인" : "지도를 눌러 위치를 찍으세요"}</button>
+      <button type="button" class="btn ghost small" id="quitBtn">그만하기</button>`;
+    $("#checkBtn").onclick = revealRound;
+    $("#quitBtn").onclick = quitGame;
+    return;
+  }
+
+  if (game.phase === "reveal") {
+    const near = nearestFacility(r.guess.lat, r.guess.lng, r.fac.kind);
+    const msg = r.errKm < 0.5 ? "거의 정확해요!" : r.errKm < 2 ? "가까워요!" : r.errKm < 8 ? "조금 멀었어요." : "생각보다 먼 곳에 있었네요.";
+    el.innerHTML = `
+      ${progressBar()}
+      <div class="question ${r.fac.kind}">
+        <div class="row"><span class="chip ${r.fac.kind}">${KIND_LABEL[r.fac.kind]}</span><span class="muted small">${esc(r.fac.sub)}</span></div>
+        <div class="name">${esc(r.fac.name)}</div>
+      </div>
+      <div class="scoreline"><span class="big">${fmtKm(r.errKm)}</span><span class="plus">+${r.score.toLocaleString()}점</span></div>
+      <p>${msg} 노란 핀이 내가 찍은 곳, ${r.fac.kind === "fire" ? "빨간" : "파란"} 핀이 실제 위치예요.</p>
+      ${near ? `<div class="fact">내가 찍은 곳에서 가장 가까운 ${KIND_LABEL[r.fac.kind]} 시설은 <strong>${esc(near.facility.name || near.facility.sub)}</strong>, 직선으로 <strong>${fmtKm(near.km)}</strong> 떨어져 있어요. 출동하면 <strong>약 ${estMin(near.km)}분</strong> 걸리는 거리예요(추정).</div>` : ""}
+      <button type="button" class="btn wide" id="nextBtn">${game.idx < game.rounds.length - 1 ? "다음 문제" : "결과 보기"}</button>`;
+    $("#nextBtn").onclick = nextRound;
+    return;
+  }
+
+  // done
+  const total = game.rounds.reduce((s, x) => s + x.score, 0);
+  const avg = game.rounds.reduce((s, x) => s + x.errKm, 0) / game.rounds.length;
+  el.innerHTML = `
+    ${progressBar()}
+    <h2>결과</h2>
+    <div class="scoreline"><span class="big">${total.toLocaleString()}</span><span class="muted">/ ${(game.rounds.length * 5000).toLocaleString()}점</span></div>
+    <p>평균 <strong>${fmtKm(avg)}</strong> 차이가 났어요. 이 기록은 통계 탭에 쌓여요.</p>
+    <ul class="list">${game.rounds.map((x, i) => `
+      <li><span>${i + 1}. <span class="chip ${x.fac.kind}">${KIND_LABEL[x.fac.kind]}</span> ${esc(x.fac.name)}</span><span class="num">${fmtKm(x.errKm)}</span></li>`).join("")}
+    </ul>
+    <p>시설이 이렇게 멀리 있는 게 불안하다면, 새 시설이 생기면 좋을 곳에 투표해 주세요.</p>
+    <div class="row">
+      <button type="button" class="btn signal" id="toVoteBtn">새 시설 투표하기</button>
+      <button type="button" class="btn ghost" id="againBtn">다시 하기</button>
+    </div>`;
+  $("#toVoteBtn").onclick = () => { quitGame(); switchTab("vote"); };
+  $("#againBtn").onclick = () => { const v = game.view; quitGame(); map.setView(v.center, v.zoom); };
+}
+
+/* ───────────── 투표 ───────────── */
+
+async function setVotePoint(lat, lng) {
+  voteDraft.lat = lat; voteDraft.lng = lng;
+  voteDraft.district = ""; voteDraft.districtLoading = true;
+  const token = (voteDraft.token = uid());
+  layers.draft.clearLayers();
+  L.marker([lat, lng], { icon: pinIcon("vote"), interactive: false }).addTo(layers.draft);
+  renderVote();
+  const name = await lookupDistrict(lat, lng);
+  if (voteDraft.token !== token) return; // 그 사이 다른 곳을 찍었다
+  voteDraft.district = name;
+  voteDraft.districtLoading = false;
+  if (tab === "vote") renderVote();
+}
+
+function submitVote() {
+  if (voteDraft.lat == null) return;
+  const near = nearestFacility(voteDraft.lat, voteDraft.lng, voteDraft.kind);
+  const vote = sanitizeVote({
+    id: uid(), ts: Date.now(), provinceId: province.id,
+    district: voteDraft.district, kind: voteDraft.kind,
+    lat: Math.round(voteDraft.lat * 1e5) / 1e5, lng: Math.round(voteDraft.lng * 1e5) / 1e5,
+    nearestKm: near ? Math.round(near.km * 100) / 100 : null,
+    reasons: [...voteDraft.reasons], memo: voteDraft.memo.trim(),
+  });
+  if (!vote) { toast("지도 안의 한국 지역을 찍어 주세요."); return; }
+  store.votes.push(vote);
+  saveStore();
+  drawVotes();
+  layers.draft.clearLayers();
+  voteDraft = { kind: voteDraft.kind, lat: null, lng: null, district: "", districtLoading: false, reasons: new Set(), memo: "" };
+  toast("투표했어요. 통계 탭에서 결과를 볼 수 있어요.");
+  renderVote();
+}
+
+function renderVote() {
+  const el = $("#tab-vote");
+  const d = voteDraft;
+  const near = d.lat != null ? nearestFacility(d.lat, d.lng, d.kind) : null;
+  const mine = store.votes.slice(-5).reverse();
+  el.innerHTML = `
+    <h2>여기에 생기면 좋겠어요</h2>
+    <p class="muted">어떤 시설이 필요한지 고르고, 지도에서 위치를 눌러 투표하세요.</p>
+    <div class="seg" role="radiogroup" aria-label="시설 종류">
+      <input type="radio" name="vkind" id="vk-fire" value="fire" ${d.kind === "fire" ? "checked" : ""}><label for="vk-fire" class="fire">소방서·119센터</label>
+      <input type="radio" name="vkind" id="vk-police" value="police" ${d.kind === "police" ? "checked" : ""}><label for="vk-police" class="police">경찰서·파출소</label>
+    </div>
+    ${d.lat == null
+      ? `<div class="fact">지도를 눌러 위치를 고르세요.</div>`
+      : `<div class="fact">
+          <div><strong>${d.districtLoading ? "시군구 확인 중…" : esc(d.district || "시군구를 확인하지 못했어요")}</strong></div>
+          ${near ? `<div>지금 가장 가까운 ${KIND_LABEL[d.kind]} 시설: ${esc(near.facility.name || near.facility.sub)}<br>직선 <strong>${fmtKm(near.km)}</strong> · 출동 <strong>약 ${estMin(near.km)}분</strong>(추정)</div>` : `<div class="muted">불러온 ${KIND_LABEL[d.kind]} 시설이 없어 거리를 계산하지 못했어요.</div>`}
+        </div>`}
+    <div>
+      <h3>왜 필요한가요? <span class="muted small">(여러 개 골라도 돼요)</span></h3>
+      <div class="reasons">${REASONS.map(([k, label]) => `
+        <input type="checkbox" id="rs-${k}" value="${k}" ${d.reasons.has(k) ? "checked" : ""}><label for="rs-${k}">${label}</label>`).join("")}
+      </div>
+    </div>
+    <div>
+      <label for="memo" class="small muted">한마디 (선택, 100자)</label>
+      <textarea id="memo" rows="2" maxlength="100" placeholder="예: 밤에 이 길이 너무 어두워요">${esc(d.memo)}</textarea>
+    </div>
+    <button type="button" class="btn signal wide" id="voteBtn" ${d.lat == null ? "disabled" : ""}>투표하기</button>
+    ${mine.length ? `<section class="block"><h3>최근 투표</h3><ul class="list">${mine.map((v) => `
+      <li><span><span class="chip ${v.kind}">${KIND_LABEL[v.kind]}</span> ${esc(v.district || "시군구 미확인")}</span><span class="num">${v.nearestKm != null ? "가장 가까운 시설 " + fmtKm(v.nearestKm) : ""}</span></li>`).join("")}</ul></section>` : ""}`;
+
+  el.querySelectorAll('input[name="vkind"]').forEach((r) => r.onchange = () => { voteDraft.kind = r.value; renderVote(); });
+  el.querySelectorAll('.reasons input').forEach((c) => c.onchange = () => { c.checked ? voteDraft.reasons.add(c.value) : voteDraft.reasons.delete(c.value); });
+  $("#memo").oninput = (e) => { voteDraft.memo = e.target.value; };
+  $("#voteBtn").onclick = submitVote;
+}
+
+/* ───────────── 통계 ───────────── */
+
+function blindSpots(kind, limit = 5) {
+  if (!data) return [];
+  const bases = data.facilities.filter((f) => f.kind === kind && isResponseBase(f));
+  if (!bases.length) return [];
+  const scored = data.places.map((p) => {
+    let best = Infinity;
+    for (const f of bases) { const d = haversineKm(p.lat, p.lng, f.lat, f.lng); if (d < best) best = d; }
+    return { ...p, km: best };
+  });
+  scored.sort((a, b) => b.km - a.km);
+  // 바로 옆 마을끼리 목록을 채우지 않도록 3km 안의 중복은 건너뛴다
+  const out = [];
+  for (const p of scored) {
+    if (out.some((q) => haversineKm(p.lat, p.lng, q.lat, q.lng) < 3)) continue;
+    out.push(p);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+function coverage(kind, minutes) {
+  if (!data || !data.places.length) return null;
+  const bases = data.facilities.filter((f) => f.kind === kind && isResponseBase(f));
+  if (!bases.length) return null;
+  let ok = 0;
+  for (const p of data.places) {
+    let best = Infinity;
+    for (const f of bases) { const d = haversineKm(p.lat, p.lng, f.lat, f.lng); if (d < best) best = d; }
+    if (estMin(best) <= minutes) ok++;
+  }
+  return ok / data.places.length;
+}
+
+function drawBlind(spots) {
+  layers.blind.clearLayers();
+  const color = blindKind === "fire" ? css("--fire") : css("--police");
+  spots.forEach((p, i) => {
+    L.circleMarker([p.lat, p.lng], { radius: 11, color, weight: 3, fillColor: css("--signal"), fillOpacity: 0.9, bubblingMouseEvents: false })
+      .bindTooltip(String(i + 1), { permanent: true, direction: "center", className: "", opacity: 0.9 })
+      .bindPopup(`<strong>${esc(p.name)}</strong><br>가장 가까운 ${KIND_LABEL[blindKind]} 시설까지 ${fmtKm(p.km)} · 약 ${estMin(p.km)}분(추정)`)
+      .addTo(layers.blind);
+  });
+}
+
+const avgErr = (rounds) => (rounds.length ? rounds.reduce((s, r) => s + r.errKm, 0) / rounds.length : null);
+
+function renderStats() {
+  const el = $("#tab-stats");
+  const votes = store.votes;
+  const games = store.games;
+  const allRounds = games.flatMap((g) => g.rounds);
+  const errFire = avgErr(allRounds.filter((r) => r.kind === "fire"));
+  const errPolice = avgErr(allRounds.filter((r) => r.kind === "police"));
+  const provName = (id) => PROVINCES.find((p) => p.id === id)?.name || "지역 미상";
+
+  // 시군구별 투표
+  const byArea = new Map();
+  for (const v of votes) {
+    const key = `${provName(v.provinceId)} ${v.district || "(시군구 미확인)"}`;
+    const row = byArea.get(key) || { fire: 0, police: 0, far: [] };
+    row[v.kind]++;
+    if (v.nearestKm != null) row.far.push(v.nearestKm);
+    byArea.set(key, row);
+  }
+  const areaRows = [...byArea.entries()].sort((a, b) => (b[1].fire + b[1].police) - (a[1].fire + a[1].police));
+
+  const reasonCounts = REASONS.map(([k, label]) => [label, votes.filter((v) => v.reasons.includes(k)).length]);
+  const reasonMax = Math.max(1, ...reasonCounts.map((x) => x[1]));
+
+  const spots = blindSpots(blindKind);
+  drawBlind(spots);
+  const cov = data ? { fire: coverage("fire", 7), police: coverage("police", 10) } : null;
+
+  el.innerHTML = `
+    <h2>모인 통계</h2>
+    <div class="tiles">
+      <div class="tile"><div class="k">새 시설 투표</div><div class="v">${votes.length}<small> 건</small></div></div>
+      <div class="tile"><div class="k">맞히기 게임</div><div class="v">${games.length}<small> 판</small></div></div>
+      <div class="tile"><div class="k">소방 위치 평균 오차</div><div class="v">${errFire == null ? "–" : fmtKm(errFire)}</div></div>
+      <div class="tile"><div class="k">경찰 위치 평균 오차</div><div class="v">${errPolice == null ? "–" : fmtKm(errPolice)}</div></div>
+    </div>
+
+    <section class="block">
+      <h3>투표가 많은 지역</h3>
+      ${areaRows.length ? `<div class="tablewrap"><table>
+        <thead><tr><th>지역</th><th>소방</th><th>경찰</th><th>가까운 시설까지 평균</th></tr></thead>
+        <tbody>${areaRows.map(([k, r]) => `<tr><td>${esc(k)}</td><td class="fire">${r.fire}</td><td class="police">${r.police}</td><td>${r.far.length ? fmtKm(r.far.reduce((a, b) => a + b, 0) / r.far.length) : "–"}</td></tr>`).join("")}</tbody>
+      </table></div>` : `<p class="muted small">아직 투표가 없어요. 투표 탭에서 첫 투표를 해 보세요.</p>`}
+    </section>
+
+    <section class="block">
+      <h3>투표 이유</h3>
+      <div class="bars">${reasonCounts.map(([label, n]) => `
+        <div class="bar"><div class="track"><div class="fill" style="width:${(n / reasonMax) * 100}%"></div><div class="lbl">${label}</div></div><div class="n">${n}</div></div>`).join("")}
+      </div>
+    </section>
+
+    <hr>
+
+    <section class="block">
+      <h3>데이터로 본 사각지대 · ${esc(province.name)}</h3>
+      <div class="seg" role="radiogroup" aria-label="사각지대 시설 종류">
+        <input type="radio" name="bkind" id="bk-fire" value="fire" ${blindKind === "fire" ? "checked" : ""}><label for="bk-fire" class="fire">소방</label>
+        <input type="radio" name="bkind" id="bk-police" value="police" ${blindKind === "police" ? "checked" : ""}><label for="bk-police" class="police">경찰</label>
+      </div>
+      ${!data ? `<p class="muted small">지역 데이터를 불러오면 계산해요.</p>` : spots.length ? `
+        <p class="small">가장 가까운 ${KIND_FULL[blindKind]}에서 가장 먼 마을 ${spots.length}곳이에요. 누르면 지도에서 보여 줘요.</p>
+        <ul class="list">${spots.map((p, i) => `
+          <li><span><button type="button" class="linklike" data-spot="${i}">${i + 1}. ${esc(p.name)}</button></span><span class="num">${fmtKm(p.km)} · 약 ${estMin(p.km)}분</span></li>`).join("")}
+        </ul>` : `<p class="muted small">계산할 마을이나 시설 데이터가 없어요.</p>`}
+      ${cov && cov.fire != null && cov.police != null ? `<div class="fact small">
+        이 지역 마을 중 소방 <strong>7분</strong> 안에 닿는 곳 <strong>${Math.round(cov.fire * 100)}%</strong>,
+        경찰 <strong>10분</strong> 안에 닿는 곳 <strong>${Math.round(cov.police * 100)}%</strong> (추정)</div>` : ""}
+      <p class="note">마을 위치와 시설 위치는 OpenStreetMap 기준이에요. 도착 시간은 직선거리 × ${DETOUR}(도로 우회) ÷ 시속 ${SPEED_KMH}km로 계산한 추정값이라 실제와 다를 수 있어요. 치안센터는 상시 출동 거점이 아닌 경우가 많아 계산에서 뺐어요.</p>
+    </section>
+
+    <hr>
+
+    <section class="block">
+      <h3>모둠 기록 합치기</h3>
+      <p class="small muted">기록은 이 기기에만 저장돼요. 모둠원이 각자 내보낸 파일을 한 기기에서 불러오면 통계가 합쳐져요.</p>
+      <div class="row">
+        <button type="button" class="btn small" id="exportBtn">기록 내보내기 (JSON)</button>
+        <button type="button" class="btn small ghost" id="csvBtn">투표 표로 받기 (CSV)</button>
+        <label class="btn small ghost" for="importFile">기록 불러와 합치기</label>
+        <input type="file" id="importFile" accept=".json,application/json" hidden>
+      </div>
+      ${confirmReset ? `<div class="confirm"><p><strong>이 기기의 투표 ${votes.length}건과 게임 ${games.length}판을 모두 지울까요?</strong> 되돌릴 수 없어요.</p>
+        <div class="row"><button type="button" class="btn small" id="resetYes">모두 지우기</button><button type="button" class="btn small ghost" id="resetNo">취소</button></div></div>`
+        : `<div><button type="button" class="btn small ghost" id="resetBtn">기록 초기화</button></div>`}
+    </section>
+
+    <details>
+      <summary>공공데이터 CSV로 시설 위치 바꾸기</summary>
+      <div class="stack">
+        <p class="small">OpenStreetMap에는 빠진 시설이 있을 수 있어요. 공공데이터포털에서 받은 시설 목록(위도·경도 열이 있는 CSV)을 불러오면 그 종류의 시설을 파일 내용으로 바꿔요.</p>
+        <div class="row">
+          <label for="csvKind" class="small">파일 종류</label>
+          <select id="csvKind"><option value="auto">이름으로 자동 판단</option><option value="fire">모두 소방</option><option value="police">모두 경찰</option></select>
+        </div>
+        <input type="file" id="csvFile" accept=".csv,text/csv">
+        <p class="note">필요한 열: 이름(센터명·관서명·시설명 등), 위도, 경도. 한글이 깨지는 EUC-KR 파일도 읽을 수 있어요.</p>
+      </div>
+    </details>
+    <p class="note">지도·시설·마을 데이터: © OpenStreetMap 기여자 (ODbL)</p>`;
+
+  el.querySelectorAll('input[name="bkind"]').forEach((r) => r.onchange = () => { blindKind = r.value; renderStats(); });
+  el.querySelectorAll("[data-spot]").forEach((b) => b.onclick = () => {
+    const p = spots[+b.dataset.spot];
+    map.setView([p.lat, p.lng], 12);
+  });
+  $("#exportBtn").onclick = exportJSON;
+  $("#csvBtn").onclick = exportCSV;
+  $("#importFile").onchange = (e) => importJSON(e.target.files[0]);
+  $("#csvFile").onchange = (e) => importFacilityCSV(e.target.files[0], $("#csvKind").value);
+  if (confirmReset) {
+    $("#resetYes").onclick = () => { store = { votes: [], games: [] }; saveStore(); confirmReset = false; drawVotes(); renderStats(); toast("기록을 지웠어요."); };
+    $("#resetNo").onclick = () => { confirmReset = false; renderStats(); };
+  } else {
+    $("#resetBtn").onclick = () => { confirmReset = true; renderStats(); };
+  }
+}
+
+/* ───────────── 내보내기·불러오기 ───────────── */
+
+function download(filename, text, type) {
+  const blob = new Blob([text], { type });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+const today = () => new Date().toISOString().slice(0, 10).replace(/-/g, "");
+
+function exportJSON() {
+  const payload = { app: "안전게서", version: 1, exportedAt: new Date().toISOString(), votes: store.votes, games: store.games };
+  download(`안전게서-기록-${today()}.json`, JSON.stringify(payload, null, 1), "application/json");
+}
+
+function exportCSV() {
+  const q = (s) => `"${String(s ?? "").replace(/"/g, '""')}"`;
+  const head = ["시각", "시도", "시군구", "종류", "위도", "경도", "가장가까운시설_km", "이유", "한마디"];
+  const lines = store.votes.map((v) => [
+    new Date(v.ts).toLocaleString("ko-KR"),
+    PROVINCES.find((p) => p.id === v.provinceId)?.name || "",
+    v.district, KIND_LABEL[v.kind], v.lat, v.lng, v.nearestKm ?? "",
+    v.reasons.map((r) => REASON_LABEL[r]).join(" / "), v.memo,
+  ].map(q).join(","));
+  download(`안전게서-투표-${today()}.csv`, "﻿" + [head.map(q).join(","), ...lines].join("\r\n"), "text/csv");
+}
+
+async function importJSON(file) {
+  if (!file) return;
+  try {
+    const parsed = sanitizeStore(JSON.parse(await file.text()));
+    if (!parsed) throw new Error("bad");
+    const vIds = new Set(store.votes.map((v) => v.id));
+    const gIds = new Set(store.games.map((g) => g.id));
+    const newVotes = parsed.votes.filter((v) => !vIds.has(v.id));
+    const newGames = parsed.games.filter((g) => !gIds.has(g.id));
+    store.votes.push(...newVotes);
+    store.games.push(...newGames);
+    saveStore();
+    drawVotes();
+    renderStats();
+    toast(`투표 ${newVotes.length}건, 게임 ${newGames.length}판을 합쳤어요.`);
+  } catch {
+    toast("안전게서에서 내보낸 JSON 파일이 아니에요.");
+  }
+}
+
+function decodeText(buf) {
+  try { return new TextDecoder("utf-8", { fatal: true }).decode(buf).replace(/^﻿/, ""); }
+  catch { return new TextDecoder("euc-kr").decode(buf); }
+}
+
+function parseCSV(text) {
+  const rows = []; let row = [], field = "", quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else quoted = false; }
+      else field += c;
+    } else if (c === '"') quoted = true;
+    else if (c === ",") { row.push(field); field = ""; }
+    else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+    else if (c !== "\r") field += c;
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows.filter((r) => r.some((x) => x.trim()));
+}
+
+function findCol(header, tests) {
+  for (const t of tests) {
+    const i = header.findIndex((h) => t(h.trim()));
+    if (i >= 0) return i;
+  }
+  return -1;
+}
+
+async function importFacilityCSV(file, kindMode) {
+  if (!file) return;
+  if (!data) { toast("먼저 지역 데이터를 불러와 주세요."); return; }
+  try {
+    const rows = parseCSV(decodeText(await file.arrayBuffer()));
+    const header = rows[0] || [];
+    const iLat = findCol(header, [(h) => h.includes("위도"), (h) => /^(lat|latitude)$/i.test(h)]);
+    const iLng = findCol(header, [(h) => h.includes("경도"), (h) => /^(lng|lon|long|longitude)$/i.test(h)]);
+    const iName = findCol(header, [(h) => h.includes("센터명"), (h) => h.includes("관서명"), (h) => h.includes("시설명"), (h) => h.includes("명칭"), (h) => h.includes("이름"), (h) => /^name$/i.test(h), (h) => h.endsWith("명")]);
+    const iType = findCol(header, [(h) => h.includes("구분"), (h) => h.includes("종류"), (h) => h.includes("유형")]);
+    if (iLat < 0 || iLng < 0 || iName < 0) { toast("위도·경도·이름 열을 찾지 못했어요. 열 제목을 확인해 주세요."); return; }
+
+    const loaded = [];
+    rows.slice(1).forEach((r, idx) => {
+      const lat = parseFloat(r[iLat]), lng = parseFloat(r[iLng]);
+      const name = (r[iName] || "").trim();
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < 33 || lat > 39 || lng < 124 || lng > 132) return;
+      const kind = kindMode === "auto" ? kindFromText(`${iType >= 0 ? r[iType] : ""} ${name}`) : kindMode;
+      if (!kind) return;
+      loaded.push({ id: `csv-${idx}`, kind, name, sub: subtypeOf(kind, name), lat, lng, inRegion: true, src: "CSV" });
+    });
+    if (!loaded.length) { toast("읽을 수 있는 시설이 없었어요. 위도·경도가 WGS84(예: 37.5, 127.0)인지 확인해 주세요."); return; }
+
+    const kinds = new Set(loaded.map((f) => f.kind));
+    data.facilities = [...data.facilities.filter((f) => !kinds.has(f.kind)), ...loaded];
+    drawFacilities();
+    renderStats();
+    toast(`CSV에서 시설 ${loaded.length}곳을 불러왔어요 (${[...kinds].map((k) => KIND_LABEL[k]).join("·")}).`);
+  } catch {
+    toast("CSV 파일을 읽지 못했어요.");
+  }
+}
+
+/* ───────────── 탭·지역 전환 ───────────── */
+
+function switchTab(next) {
+  tab = next;
+  document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+  for (const t of ["play", "vote", "stats"]) $("#tab-" + t).hidden = t !== tab;
+  if (tab !== "vote") layers.draft.clearLayers();
+  if (tab === "play") renderPlay();
+  if (tab === "vote") { if (voteDraft.lat != null) L.marker([voteDraft.lat, voteDraft.lng], { icon: pinIcon("vote"), interactive: false }).addTo(layers.draft); renderVote(); }
+  if (tab === "stats") renderStats();
+  syncMap();
+}
+document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => switchTab(b.dataset.tab));
+
+function setStatus(text, isErr = false) {
+  const el = $("#loadStatus");
+  el.textContent = text;
+  el.classList.toggle("err", isErr);
+}
+
+async function selectProvince(prov, opts = {}) {
+  province = prov;
+  writeJSON(PREF_KEY, { provinceId: prov.id });
+  data = null; game = null; loadError = ""; loading = true;
+  layers.game.clearLayers(); layers.blind.clearLayers(); layers.facilities.clearLayers();
+  map.setView(prov.center, prov.zoom);
+  setStatus(`${prov.name}의 소방서·경찰서 위치를 불러오는 중…`);
+  switchTab(tab);
+  try {
+    const d = await loadProvince(prov, opts);
+    if (province !== prov) return; // 그 사이 다른 지역을 골랐다
+    data = d;
+    const nf = d.facilities.filter((f) => f.inRegion && f.kind === "fire").length;
+    const np = d.facilities.filter((f) => f.inRegion && f.kind === "police").length;
+    setStatus(`${prov.name}: 소방 ${nf}곳 · 경찰 ${np}곳 · 마을 ${d.places.length}곳${d.neighbourOk ? "" : " (이웃 지역 시설은 못 불러옴)"}`);
+    const pts = d.facilities.filter((f) => f.inRegion);
+    if (pts.length) { const b = boundsOf(pts); map.fitBounds([[b.s, b.w], [b.n, b.e]], { padding: [10, 10] }); }
+  } catch (e) {
+    if (province !== prov) return;
+    loadError = String(e?.message || e);
+    setStatus("지도 데이터를 불러오지 못했어요. 인터넷 연결을 확인하고 ‘다시 불러오기’를 눌러 주세요.", true);
+  } finally {
+    if (province === prov) loading = false;
+  }
+  drawFacilities();
+  switchTab(tab);
+}
+
+const sel = $("#provinceSel");
+sel.innerHTML = PROVINCES.map((p) => `<option value="${p.id}">${p.name}</option>`).join("");
+sel.value = province.id;
+sel.onchange = () => selectProvince(PROVINCES.find((p) => p.id === sel.value));
+$("#reloadBtn").onclick = () => selectProvince(province, { force: true });
+
+drawVotes();
+selectProvince(province);
+</script>
+</body>
+</html>
